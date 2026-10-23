@@ -2,9 +2,9 @@ import re
 
 import pytest
 import serial
+from helpers import log_text
 
 from lib import read_firmware, wait_for_condition
-from helpers import log_text
 
 
 @pytest.mark.tc('TC-OTA-021')

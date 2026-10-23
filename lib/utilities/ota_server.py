@@ -27,6 +27,7 @@ import argparse
 import http.server
 import os
 import random
+import re
 import socket
 import socketserver
 import sys
@@ -35,6 +36,7 @@ import urllib.request
 
 GITHUB = 'https://raw.githubusercontent.com/BohdanHorbanych/esp32-ota-files/main/fw7/'
 BIN = 'sentry_fw7.bin'
+SLOW_FIRMWARE_KBPS = 20
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'server_files')
 FW = os.path.join(ROOT, 'fw7')
 
@@ -102,7 +104,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
   def log_message(self, fmt, *a):
     print(f'[{time.strftime("%H:%M:%S")}] {self.client_address[0]} {fmt % a}')
 
-  def send_bytes(self, data, ctype='application/octet-stream'):
+  def send_bytes(self, data, ctype='application/octet-stream', slow_kbps=0):
     self.send_response(200)
     self.send_header('Content-Type', ctype)
     self.send_header('Content-Length', str(len(data)))
@@ -126,11 +128,37 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         print(f'    client disconnected at {sent * 100 // len(data)}%')
         return
       sent += len(part)
-      if is_fw and args.slow:
-        time.sleep(len(part) / (args.slow * 1024))
+      speed = slow_kbps or args.slow
+      if is_fw and speed:
+        time.sleep(len(part) / (speed * 1024))
 
   def route(self):
     path = self.path.split('?')[0]
+    slow_transfer = path.startswith('/fw7/slow/')
+    if slow_transfer:
+      path = '/fw7/' + path[len('/fw7/slow/'):]
+    missing_channel = '/fw7/missing-channel/'
+    if path.startswith(missing_channel):
+      name = path[len(missing_channel):]
+      if name in ('stable.txt', 'beta.txt'):
+        return self.send_error(404)
+      path = '/fw7/' + name
+    start_failure = '/fw7/download-start-failure/'
+    if path.startswith(start_failure):
+      # HEAD is allowed, but a firmware GET must fail before any image bytes.
+      image_path = path[len(start_failure):]
+      if not re.fullmatch(r'v\d+\.\d+\.\d+/sentry_fw7\.bin', image_path):
+        return self.send_error(404)
+      full = os.path.join(FW, image_path)
+      if not os.path.isfile(full):
+        return self.send_error(404)
+      if self.command == 'HEAD':
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/octet-stream')
+        self.send_header('Content-Length', str(os.path.getsize(full)))
+        self.end_headers()
+        return
+      return self.send_error(503, 'Firmware download cannot start')
     if path == '/fw7/stable.txt' and args.stable:
       return self.send_bytes((args.stable + '\n').encode(), 'text/plain')
     if path == '/fw7/beta.txt' and args.beta:
@@ -152,7 +180,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     if os.path.isfile(full):
       with open(full, 'rb') as f:
         ctype = 'text/plain' if full.endswith('.txt') else 'application/octet-stream'
-        return self.send_bytes(f.read(), ctype)
+        return self.send_bytes(f.read(), ctype, SLOW_FIRMWARE_KBPS if slow_transfer else 0)
     return self.send_error(404)
 
   def do_GET(self):

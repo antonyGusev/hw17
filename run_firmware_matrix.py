@@ -14,17 +14,21 @@ from pathlib import Path
 from packaging.version import Version
 
 from framework import DeviceDriver
-from lib import UARTConnector, find_device_port, read_firmware
-from lib.utilities.ota_server_manager import SERVER_MANAGED_ENV, running_ota_server
+from lib import (
+  SERVER_MANAGED_ENV,
+  UARTConnector,
+  find_device_port,
+  read_firmware,
+  running_ota_server,
+)
 
 ROOT = Path(__file__).resolve().parent
 VERSIONS = (Version('2.1.0'), Version('2.3.0'))
 
 
-
 # Use the same Wi-Fi/auth/boot logic as the fw_7 OTA tests, not the old Wi-Fi CLI.
 sys.path.insert(0, str(ROOT / 'tests' / 'ota'))
-from helpers import ota_success, require_login, wait_boot
+from tests.ota.helpers import ota_success, require_login, wait_boot
 
 FAILURE_REPORTS = []
 ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;]*m')
@@ -136,8 +140,16 @@ def main(no_flash: bool = False) -> int:
 
   # Tests tagged 'first' need the just-flashed default device state.
   if not no_flash:
-    if not run_pytest(f'{VERSIONS[0]}: first', ['-m', 'first']):
-      failed_stages.append(f'{VERSIONS[0]}: first')
+    previous_flag = os.environ.get('OTA_PRISTINE_SINGLE_SLOT')
+    os.environ['OTA_PRISTINE_SINGLE_SLOT'] = '1'
+    try:
+      if not run_pytest(f'{VERSIONS[0]}: first', ['-m', 'first']):
+        failed_stages.append(f'{VERSIONS[0]}: first')
+    finally:
+      if previous_flag is None:
+        os.environ.pop('OTA_PRISTINE_SINGLE_SLOT', None)
+      else:
+        os.environ['OTA_PRISTINE_SINGLE_SLOT'] = previous_flag
     check_version(VERSIONS[0])
 
   # Gatekeeper checks critical OTA operations, including upgrade and downgrade.

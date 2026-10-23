@@ -1,6 +1,5 @@
 import pytest
-
-from helpers import check_versions, require_login, log_text, wait_boot
+from helpers import check_versions, log_text, require_login, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-050')
@@ -15,7 +14,7 @@ def test_custom_ota_server_used_for_check(ota_connected_device, ota_server_url):
     response = device.ota.check()
     assert check_versions(response)['stable'] is not None
   finally:
-    device.ota.server('default')
+    device.ota.server(ota_server_url)
 
 
 @pytest.mark.tc('TC-OTA-051')
@@ -34,7 +33,7 @@ def test_custom_ota_server_persists_reboot(ota_connected_device, ota_server_url)
     assert check_versions(device.ota.check())['beta'] is not None
   finally:
     require_login(device)
-    device.ota.server('default')
+    device.ota.server(ota_server_url)
 
 
 @pytest.mark.tc('TC-OTA-052')
@@ -54,4 +53,4 @@ def test_reset_ota_server_to_default(ota_connected_device, ota_server_url):
     assert expected in log_text(device.ota.server())
   finally:
     require_login(device)
-    device.ota.server('default')
+    device.ota.server(ota_server_url)

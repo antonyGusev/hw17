@@ -1,5 +1,7 @@
 from .connectors import UARTConnector
 from .utilities import (
+  SERVER_MANAGED_ENV,
+  SERVER_URL_ENV,
   DeviceError,
   DeviceNotConnectedError,
   DeviceTimeoutError,
@@ -11,10 +13,13 @@ from .utilities import (
   find_device_port,
   has_active_wifi_connection,
   read_firmware,
+  running_ota_server,
   wait_for_condition,
 )
 
 __all__ = [
+  'SERVER_MANAGED_ENV',
+  'SERVER_URL_ENV',
   'DeviceError',
   'DeviceNotConnectedError',
   'DeviceTimeoutError',
@@ -27,5 +32,6 @@ __all__ = [
   'find_device_port',
   'has_active_wifi_connection',
   'read_firmware',
+  'running_ota_server',
   'wait_for_condition',
 ]

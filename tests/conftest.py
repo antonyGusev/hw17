@@ -1,5 +1,6 @@
 import os
 import re
+from contextlib import ExitStack
 
 import pytest
 from packaging.version import Version
@@ -14,12 +15,14 @@ from config import (
   SSID,
 )
 from framework import DeviceDriver, HILDriver
-from lib.utilities.ota_server_manager import SERVER_MANAGED_ENV, SERVER_URL_ENV, running_ota_server
 from lib import (
+  SERVER_MANAGED_ENV,
+  SERVER_URL_ENV,
   DeviceTimeoutError,
   UARTConnector,
   find_device_port,
   has_active_wifi_connection,
+  running_ota_server,
   wait_for_condition,
 )
 
@@ -76,34 +79,50 @@ def pytest_collection_modifyitems(items):
   items.sort(key=test_order)
 
 
-@pytest.fixture(scope='session', autouse=True)
-def ota_server_session(request):
-  # Each full-cycle stage is a separate pytest process. The runner owns the server.
+def pytest_sessionstart(session):
+  if session.config.option.collectonly:
+    return
+
+  # The matrix runner owns one server across its separate pytest processes.
   if os.getenv(SERVER_MANAGED_ENV) == '1':
     url = os.getenv(SERVER_URL_ENV)
     if not url:
       raise RuntimeError(f'{SERVER_URL_ENV} is missing from the firmware matrix runner')
-    yield url
+    session.config._ota_server_url = url
+    print(f'OTA server URL (runner): {url}', flush=True)
     return
 
-  # Pure unit tests have no hardware/server requirements.
-  unit_dir = request.config.rootpath / 'tests' / 'unit'
-  if request.session.items and all(unit_dir in item.path.parents for item in request.session.items):
-    yield
-    return
+  stack = ExitStack()
+  session.config._ota_server_stack = stack
+  try:
+    session.config._ota_server_url = stack.enter_context(running_ota_server())
+  except BaseException:
+    stack.close()
+    session.config._ota_server_stack = None
+    raise
 
-  with running_ota_server() as url:
-    reporter = request.config.pluginmanager.get_plugin('terminalreporter')
-    if reporter:
-      reporter.write_line(f'OTA server URL: {url}')
-    yield url
+
+def _stop_ota_server(config):
+  stack = getattr(config, '_ota_server_stack', None)
+  if stack is not None:
+    config._ota_server_stack = None
+    stack.close()
+
+
+def pytest_sessionfinish(session, exitstatus):
+  _stop_ota_server(session.config)
+
+
+def pytest_unconfigure(config):
+  _stop_ota_server(config)
 
 
 @pytest.fixture(scope='session')
-def ota_server_url(ota_server_session):
-  if not ota_server_session:
+def ota_server_url(pytestconfig):
+  url = getattr(pytestconfig, '_ota_server_url', None)
+  if not url:
     raise RuntimeError('OTA server URL is unavailable')
-  return ota_server_session
+  return url
 
 
 @pytest.fixture(scope='session')
@@ -145,7 +164,7 @@ def hil():
 
 
 @pytest.fixture(scope='session')
-def ota_device(ota_server_session):
+def ota_device():
   port = find_device_port()
   connector = UARTConnector(port)
   connector.open()

@@ -1,14 +1,16 @@
 import pytest
+from helpers import check_versions, require_login, restore_firmware
 from packaging.version import Version
 
 from lib import read_firmware
-from helpers import check_versions, require_login, restore_firmware
 
 
 @pytest.fixture(scope='session', autouse=True)
-def ota_initial_firmware(ota_device):
+def ota_initial_firmware(ota_device, ota_server_url):
   # Keep one baseline for the entire OTA run, not the version left by a failed test.
   original, _, _ = read_firmware(ota_device)
+  require_login(ota_device)
+  ota_device.ota.server(ota_server_url)
   print(f'OTA firmware baseline: {original}')
 
   yield original

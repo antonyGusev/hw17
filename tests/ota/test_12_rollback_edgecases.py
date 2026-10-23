@@ -2,10 +2,10 @@ import re
 
 import pytest
 import serial
+from helpers import log_text, ota_success, require_login, wait_boot
 
-from config import OTA_PRISTINE_SINGLE_SLOT, OTA_THROTTLED_TRANSFER, OTA_DOWNLOAD_START_FAILURE_URL
+from config import OTA_PRISTINE_SINGLE_SLOT
 from lib import read_firmware, wait_for_condition
-from helpers import require_login, log_text, ota_success, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-020')
@@ -43,7 +43,7 @@ def test_power_cut_during_pending_verify(ota_connected_device, ota_versions, hil
 
 
 @pytest.mark.tc('TC-OTA-030')
-@pytest.mark.regression
+@pytest.mark.first
 @pytest.mark.negative
 def test_rollback_without_previous_image(ota_connected_device):
   if OTA_PRISTINE_SINGLE_SLOT != '1':
@@ -75,30 +75,38 @@ def test_rollback_rejects_invalid_other_slot(ota_connected_device):
 @pytest.mark.tc('TC-OTA-035')
 @pytest.mark.regression
 @pytest.mark.negative
-def test_concurrent_ota_rejected(ota_connected_device):
-  if OTA_THROTTLED_TRANSFER != '1':
-    pytest.skip('Requires throttled fw7 server to keep OTA active at the CLI probe')
+def test_concurrent_ota_rejected(ota_connected_device, ota_server_url):
   device = ota_connected_device
   original = read_firmware(device)
-  first = device.ota.install(str(original[0]), force=True, until=('10%', '[OTA] success:', 'E4'))
-  assert re.search(r'\[OTA\]\s+10%', log_text(first)), first
-  device._connector.write_command('ota check')
-  stream = log_text(device.wait_for_log('[OTA] success:', timeout=300))
-  assert 'E401' in stream, stream
-  wait_boot(device)
-  assert read_firmware(device)[0] == original[0]
-  assert read_firmware(device)[2].lower() == 'valid'
+  slow_server = ota_server_url.rstrip('/') + '/slow/'
+  try:
+    device.ota.server(slow_server)
+    first = device.ota.install(str(original[0]), force=True, until=('10%', '[OTA] success:', 'E4'))
+    assert re.search(r'\[OTA\]\s+10%', log_text(first)), first
+    second_command = f'ota install {original[0]} force'
+    device._connector.write_command(second_command)
+    stream = log_text(device.wait_for_log('[OTA] success:', timeout=300))
+    wait_boot(device)
+    assert 'E401' in stream, (
+      f'Expected E401 for second OTA install during active download; '
+      f'command_echo_seen={second_command in stream}; '
+      f'first_ota_completed={"[OTA] success:" in stream}; '
+      f'UART log:\n{stream}'
+    )
+    assert read_firmware(device)[0] == original[0]
+    assert read_firmware(device)[2].lower() == 'valid'
+  finally:
+    require_login(device)
+    device.ota.server(ota_server_url)
 
 
 @pytest.mark.tc('TC-OTA-038')
 @pytest.mark.regression
 @pytest.mark.negative
-def test_download_cannot_start(ota_connected_device):
-  url = OTA_DOWNLOAD_START_FAILURE_URL
-  if not url:
-    pytest.skip('Configure OTA_DOWNLOAD_START_FAILURE_URL for a controlled E405 response')
+def test_download_cannot_start(ota_connected_device, ota_server_url):
   device = ota_connected_device
   before = read_firmware(device)
+  url = ota_server_url.rstrip('/') + f'/download-start-failure/v{before[0]}/sentry_fw7.bin'
   result = log_text(device.ota.url(url, timeout=30))
   assert 'E405' in result, result
   assert read_firmware(device) == before

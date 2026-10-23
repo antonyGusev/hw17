@@ -234,6 +234,7 @@ verified between stages, and OTA tests restore the firmware they started with.
 | `poe positive_tests` | Positive tests |
 | `poe negative_tests` | Negative tests |
 | `poe ota` | OTA tests only, using their entry firmware as the baseline |
+| `poe unit` | Framework unit tests (no DUT, HIL or OTA server) |
 
 **Flashing:** the fw_7 v2.1.0 merged binary is included at
 `artifacts/firmware/device/sentry_fw7_v2.1.0_merged.bin`.
@@ -247,13 +248,21 @@ The original Lamp tests remain in the matrix by design; their firmware-specific
 expectations must be checked separately against fw_7 before treating Lamp
 results as valid.
 
+### Framework unit tests
+
+Framework-only tests live in `framework_tests/`, outside the device test tree.
+Run them explicitly with `poe unit` (or `pytest framework_tests`).
+`poe all`, `poe regression`, `poe ota`, and the firmware matrix run only
+HIL/device tests in `tests/`.
+
 ### Local OTA test server
 
 The local server in `lib/utilities/ota_server.py` is started **once** before HIL tests
 and stopped after the run (also after test failures). During `poe full_cycle` or
 `poe full_cycle_no_flash`, the matrix runner keeps **one server process** alive
 across all pytest stages. `poe ota`, `poe regression` and direct pytest use the
-pytest session fixture. Pure unit-test runs do not start the server.
+pytest session hooks. Framework unit tests in `framework_tests/` are separate
+from device tests and never start the server.
 
 On the first run, if `lib/utilities/server_files/fw7` is empty, setup runs
 `ota_server.py --download` to cache stable, beta and broken images from GitHub.

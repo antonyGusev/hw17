@@ -8,7 +8,7 @@ from framework.device.controllers.lamp_controller import LampController
 
 
 spec = importlib.util.spec_from_file_location(
-  'fw7_ota_helpers_markers', Path(__file__).resolve().parents[1] / 'ota' / 'helpers.py'
+  'fw7_ota_helpers_markers', Path(__file__).resolve().parents[1] / 'tests' / 'ota' / 'helpers.py'
 )
 helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)

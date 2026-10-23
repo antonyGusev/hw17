@@ -6,19 +6,20 @@ Configure `SSID` and `PASSWORD` for the Wi-Fi AP. After each reboot OTA tests ex
 
 Controlled test inputs (optional except for the auto-managed local OTA server):
 
-- `OTA_INVALID_IMAGE_HEADER_2_1_0`, `OTA_INVALID_IMAGE_HEADER_2_3_0` — URL of a non-firmware binary (E406)
+- TC-OTA-022 (E406): uses the local server `/test/garbage.bin` for a non-firmware payload; no `.env` URL is required
 - `OTA_CORRUPTED_IMAGE_2_1_0`, `OTA_CORRUPTED_IMAGE_2_3_0` — corrupted fw_7 image URL (E412)
 - `OTA_HTTPS_URL`, `OTA_HTTPS_VERSION` — valid fw_7 image and version for HTTPS-only TC-OTA-023
 - `OTA_SAME_VERSION_URL` — image with the **currently installed** firmware version
 - `OTA_TEST_SERVER` — generated automatically when the local server starts; `ota_server_url` session fixture supplies the URL to tests (no `.env` setting needed)
-- `OTA_MISSING_CHANNEL_SERVER`, `OTA_OTHER_PROJECT_IMAGE_URL`, `OTA_DOWNLOAD_START_FAILURE_URL` — controlled E403/E407/E405 negative cases
-- `OTA_PRISTINE_SINGLE_SLOT=1` — only after confirming the device has no valid previous OTA slot (E416)
-- `OTA_THROTTLED_TRANSFER=1` — only with a deliberately slow OTA transfer (E401 concurrency test)
+- `OTA_OTHER_PROJECT_IMAGE_URL` — controlled E407 image from another project
+- `OTA_PRISTINE_SINGLE_SLOT=1` — set automatically by `poe full_cycle` only for the post-flash `first` stage (TC-OTA-030, E416); do not put it in `.env` for ordinary runs
+- TC-OTA-035 (E401): uses the local `/fw7/slow/` route (20 KB/s) and injects a second `ota install` during the first transfer; no server restart required
+- TC-OTA-038 (E405): `/fw7/download-start-failure/v<version>/sentry_fw7.bin` accepts HEAD metadata but rejects GET with HTTP 503 before any firmware bytes; the normal route remains available for immediate retry. Firmware E405 mapping requires DUT verification; no `.env` URL required.
 - `OTA_GUARD_CURRENT_PIN`, `OTA_GUARD_TEST_PIN` — four-digit Guard PINs for cross-version NVS retention
 
 **Not implemented as automated tests:** TC-OTA-013 (AP outage during transfer), 040 (AP with internet unavailable), 041 (fault injection covering *every* E4xx failure class), 044 (HC-SR04 calibration/filter/alarm preservation), 047 (complete cross-feature NVS snapshot through rollback). These require controllable AP/internet, a fault-injecting OTA server, or sensor HIL support not present in the current framework. Some implemented TC IDs cover only the automatable subset of a larger checklist case (e.g. 017, 021, 043, 045, 050).
 
-After each OTA test, the OTA fixture checks the active firmware version and restores its starting version (forced install when needed). Tests that also modify persistent device settings retain their own configuration cleanup. The fixture does not restore an altered OTA partition when the firmware version has not changed.
+At the start of each OTA pytest session, the fixture configures the DUT to use the auto-managed local OTA server. Tests that temporarily switch servers restore this local URL in `finally`; TC-OTA-052 still checks the GitHub `default` setting during the test, but restores the local server afterward. After each OTA test, the OTA fixture checks the active firmware version and restores its starting version (forced install when needed). Tests that also modify persistent device settings retain their own configuration cleanup. The fixture does not restore an altered OTA partition when the firmware version has not changed.
 
 `pytest --collect-only` checks test discovery only. The real UART responses, firmware transitions and timing **must be verified on fw_7 hardware** before assigning `Passed` in `CHECK_LIST.md`.
 

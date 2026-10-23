@@ -1,9 +1,9 @@
 import re
 
 import pytest
+from helpers import install_and_verify, log_text, ota_success, require_login, wait_boot
 
 from lib import read_firmware
-from helpers import require_login, install_and_verify, log_text, ota_success, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-006')
@@ -25,11 +25,16 @@ def test_nonforced_downgrade_blocked(ota_connected_device, ota_versions):
   device = ota_connected_device
   original, _, _ = read_firmware(device)
   beta, stable = ota_versions['beta'], ota_versions['stable']
+
   if original != beta:
     install_and_verify(device, beta, force=(original > beta))
+
+  require_login(device)
+
   before = read_firmware(device)
   response = log_text(device.ota.install(str(stable), timeout=15))
-  assert re.search(rf'E408.*v?{beta}.*v?{stable}.*force', response, re.I), response
+
+  assert re.search(rf'E408.*v?{beta}.*v?{stable}.*force', response, re.IGNORECASE), response
   assert read_firmware(device) == before
 
 
@@ -74,7 +79,7 @@ def test_alternate_inactive_partition(ota_connected_device, ota_versions):
     require_login(device)
     response = device.ota.install(str(target), force=(target <= before))
     output = log_text(response)
-    assert re.search(rf'target partition\s*:?\s*{expected_slot}', output, re.I), output
+    assert re.search(rf'target partition\s*:?\s*{expected_slot}', output, re.IGNORECASE), output
     ota_success(response, before, target)
     wait_boot(device)
     assert read_firmware(device) == (target, expected_slot, 'valid')

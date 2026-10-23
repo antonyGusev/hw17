@@ -1,10 +1,10 @@
 import re
 
 import pytest
+from helpers import install_and_verify, log_text, require_login, restore_firmware
 
 from config import OTA_GUARD_CURRENT_PIN, OTA_GUARD_TEST_PIN
 from lib import read_firmware
-from helpers import install_and_verify, log_text, require_login, restore_firmware
 
 
 def guard(device, subcommand):

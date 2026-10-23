@@ -9,7 +9,7 @@ from framework.device.controllers.wifi_controller import WifiStatus
 
 
 spec = importlib.util.spec_from_file_location(
-  'ota_helpers_for_unit_tests', Path(__file__).resolve().parents[1] / 'ota' / 'helpers.py'
+  'ota_helpers_for_unit_tests', Path(__file__).resolve().parents[1] / 'tests' / 'ota' / 'helpers.py'
 )
 helpers = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helpers)

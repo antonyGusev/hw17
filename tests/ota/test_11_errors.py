@@ -1,15 +1,14 @@
 import pytest
-
-from config import OTA_MISSING_CHANNEL_SERVER, OTA_OTHER_PROJECT_IMAGE_URL
-
-from lib import read_firmware
 from helpers import log_text
+
+from config import OTA_OTHER_PROJECT_IMAGE_URL
+from lib import read_firmware
 
 
 @pytest.mark.tc('TC-OTA-036')
 @pytest.mark.regression
 @pytest.mark.negative
-def test_unreachable_custom_server(ota_connected_device):
+def test_unreachable_custom_server(ota_connected_device, ota_server_url):
   device = ota_connected_device
   before = read_firmware(device)
   try:
@@ -18,16 +17,14 @@ def test_unreachable_custom_server(ota_connected_device):
     assert 'E402' in result, result
     assert read_firmware(device) == before
   finally:
-    device.ota.server('default')
+    device.ota.server(ota_server_url)
 
 
 @pytest.mark.tc('TC-OTA-037')
 @pytest.mark.regression
 @pytest.mark.negative
-def test_missing_channel_metadata(ota_connected_device):
-  server = OTA_MISSING_CHANNEL_SERVER
-  if not server:
-    pytest.skip('Provide OTA_MISSING_CHANNEL_SERVER serving firmware but missing channel txt')
+def test_missing_channel_metadata(ota_connected_device, ota_server_url):
+  server = ota_server_url.rstrip('/') + '/missing-channel/'
   device = ota_connected_device
   before = read_firmware(device)
   try:
@@ -36,7 +33,7 @@ def test_missing_channel_metadata(ota_connected_device):
     assert 'E403' in result, result
     assert read_firmware(device) == before
   finally:
-    device.ota.server('default')
+    device.ota.server(ota_server_url)
 
 
 @pytest.mark.tc('TC-OTA-039')

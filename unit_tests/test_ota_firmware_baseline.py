@@ -7,7 +7,7 @@ from packaging.version import Version
 
 
 def load_ota_fixtures(monkeypatch):
-  path = Path(__file__).resolve().parents[1] / 'ota'
+  path = Path(__file__).resolve().parents[1] / 'tests' / 'ota'
   monkeypatch.syspath_prepend(str(path))
   spec = importlib.util.spec_from_file_location('ota_baseline_fixtures', path / 'conftest.py')
   module = importlib.util.module_from_spec(spec)
@@ -72,11 +72,18 @@ def test_ota_fixture_restores_even_if_test_fails(monkeypatch):
 
 def test_session_baseline_restored_at_end_of_suite(monkeypatch):
   fixtures = load_ota_fixtures(monkeypatch)
-  device = SimpleNamespace(version=Version('2.1.0'))
+  commands = []
+  device = SimpleNamespace(
+    version=Version('2.1.0'),
+    ota=SimpleNamespace(server=lambda url: commands.append(url)),
+  )
+  local_url = 'http://192.168.1.2:8000/fw7/'
   monkeypatch.setattr(fixtures, 'read_firmware', lambda dut: (dut.version, 'ota_0', 'valid'))
   monkeypatch.setattr(fixtures, 'restore_firmware', lambda dut, target: setattr(dut, 'version', target))
-  session = fixtures.ota_initial_firmware.__wrapped__(device)
+  monkeypatch.setattr(fixtures, 'require_login', lambda dut: commands.append('login'))
+  session = fixtures.ota_initial_firmware.__wrapped__(device, local_url)
   assert next(session) == Version('2.1.0')
+  assert commands == ['login', local_url]
   device.version = Version('2.3.0')
   with pytest.raises(StopIteration):
     next(session)

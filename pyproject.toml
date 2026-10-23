@@ -25,6 +25,7 @@ include = [
 ]
 exclude = [
   'tests*',
+  'framework_tests*',
 ]
 
 [tool.pytest.ini_options]
@@ -52,6 +53,7 @@ regression = 'pytest -m regression'
 positive_tests = 'pytest -m positive'
 negative_tests = 'pytest -m negative'
 all = 'pytest'
+unit = 'pytest unit_tests'
 full_cycle = 'python run_firmware_matrix.py'
 full_cycle_no_flash = 'python run_firmware_matrix.py --no-flash'
 

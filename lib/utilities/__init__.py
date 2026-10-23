@@ -7,6 +7,7 @@ from .exceptions import (
   UnexpectedResponseError,
 )
 from .flasher import FirmwareFlasher
+from .ota_server_manager import SERVER_MANAGED_ENV, SERVER_URL_ENV, running_ota_server
 from .utilities import (
   ensure_wifi_connected,
   find_device_port,
@@ -16,6 +17,8 @@ from .utilities import (
 )
 
 __all__ = [
+  'SERVER_MANAGED_ENV',
+  'SERVER_URL_ENV',
   'DeviceError',
   'DeviceNotConnectedError',
   'DeviceTimeoutError',
@@ -27,5 +30,6 @@ __all__ = [
   'find_device_port',
   'has_active_wifi_connection',
   'read_firmware',
+  'running_ota_server',
   'wait_for_condition',
 ]

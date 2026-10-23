@@ -1,8 +1,8 @@
 import pytest
+from helpers import ensure_connection, install_and_verify, require_login, restore_firmware
 
 from config import SSID
 from lib import read_firmware
-from helpers import ensure_connection, install_and_verify, require_login, restore_firmware
 
 
 @pytest.mark.tc('TC-OTA-015')

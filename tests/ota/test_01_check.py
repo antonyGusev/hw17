@@ -1,7 +1,7 @@
 import pytest
+from helpers import check_versions, install_and_verify, log_text, require_login
 
 from lib import read_firmware
-from helpers import check_versions, require_login, install_and_verify, log_text
 
 
 @pytest.mark.tc('TC-OTA-003')

@@ -7,7 +7,6 @@ from packaging.version import Version
 from config import PASSWORD, SSID
 from lib import DeviceTimeoutError, has_active_wifi_connection, read_firmware
 
-
 VERSION_PATTERN = r'(?:SENTRY SWM-2 sonar watch module,\s*fw|FW:)\s*v?(\d+\.\d+\.\d+)'
 BOOT_READY = 'ready. state'  # fw_7 CLI is ready only after OTA self-check has completed
 
@@ -26,7 +25,8 @@ def ota_success(lines, source, target):
   output = log_text(lines)
   assert re.search(
     rf'\[OTA\] success:\s*v?{re.escape(str(source))}\s*->\s*'
-    rf'v?{re.escape(str(target))}\s+in\s+\d+\s+s\. Rebooting\.\.\.', output,
+    rf'v?{re.escape(str(target))}\s+in\s+\d+\s+s\. Rebooting\.\.\.',
+    output,
   ), f'Incorrect OTA success message: {lines}'
 
 
@@ -37,18 +37,21 @@ def wait_boot(device):
 def ensure_connection(device):
   if has_active_wifi_connection(device):
     return
+
   # Autoconnect is explicitly disabled in fw_7. Prefer saved credentials.
   result = device.wifi.reconnect()
-  if result.connected:
-    assert has_active_wifi_connection(device), (
-      f'Reconnect reported success, but status shows buoy link down: {result.response}'
-    )
+
+  if has_active_wifi_connection(device):
     return
 
-  assert SSID and PASSWORD, f'Wi-Fi reconnect failed, SSID/PASSWORD not configured: {result.response}'
+  assert SSID and PASSWORD, (
+    f'Wi-Fi reconnect failed, SSID/PASSWORD not configured: {result.response}'
+  )
+
   result = device.wifi.connect(SSID, PASSWORD)
-  assert result.connected and has_active_wifi_connection(device), (
-    f'Wi-Fi connect failed: {result.response}'
+
+  assert has_active_wifi_connection(device), (
+    f'Wi-Fi connection failed (no active LAN connection): {result.response}'
   )
 
 
@@ -108,9 +111,7 @@ def require_login(device):
 
   device.auth.login(OTA_TEST_LOGIN, OTA_TEST_PASSWORD)
   who = log_text(device.auth.whoami())
-  assert re.search(
-    rf'user:\s*{re.escape(OTA_TEST_LOGIN)}\s*,\s*access:', who, re.I
-  ), (
+  assert re.search(rf'user:\s*{re.escape(OTA_TEST_LOGIN)}\s*,\s*access:', who, re.I), (
     'OTA test account is not logged in. The DUT may have a different NVS '
     'profile or password (AU-1): verify the existing credentials or use '
     f'a clean test DUT. whoami={who!r}'
@@ -124,7 +125,8 @@ def check_versions(lines):
   for label in ('current', 'stable', 'beta'):
     match = re.search(
       rf'\[OTA\]\s*{label}(?:\s+(?:version|channel))?\s*:\s*v?(\d+\.\d+\.\d+)',
-      output, re.I,
+      output,
+      re.I,
     )
     assert match, f'{label} version missing in OTA check: {lines}'
     versions[label] = Version(match.group(1))

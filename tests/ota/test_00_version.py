@@ -1,9 +1,9 @@
 import re
 
 import pytest
+from helpers import VERSION_PATTERN, log_text, wait_boot
 
 from lib import read_firmware
-from helpers import VERSION_PATTERN, log_text, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-001')
@@ -40,4 +40,4 @@ def test_ota_status_reports_current_and_previous_slot(ota_device):
     output = log_text(response)
     assert str(version) in output, output
     assert partition in output, output
-    assert re.search(r'(previous|other|inactive)', output, re.I), output
+    assert re.search(r'(previous|other|inactive)', output, re.IGNORECASE), output
