@@ -1,0 +1,264 @@
+import os
+import re
+
+import pytest
+from packaging.version import Version
+
+from config import (
+  HIL_PORT,
+  LAMP_DEFAULT_BRIGHTNESS,
+  LAMP_DEFAULT_COLOR,
+  LAMP_DEFAULT_MODE,
+  LAMP_DEFAULT_RGB,
+  PASSWORD,
+  SSID,
+)
+from framework import DeviceDriver, HILDriver
+from lib.utilities.ota_server_manager import SERVER_MANAGED_ENV, SERVER_URL_ENV, running_ota_server
+from lib import (
+  DeviceTimeoutError,
+  UARTConnector,
+  find_device_port,
+  has_active_wifi_connection,
+  wait_for_condition,
+)
+
+
+def restore_default_lamp_state(device):
+  status = device.lamp.status()
+
+  if status.timer_s > 0 and status.is_on:
+    device.lamp.set_timer(0)
+
+  if status.is_on:
+    device.lamp.off()
+
+  if status.color != LAMP_DEFAULT_RGB:
+    device.lamp.set_color(LAMP_DEFAULT_COLOR)
+
+  if status.brightness != LAMP_DEFAULT_BRIGHTNESS:
+    device.lamp.set_brightness(LAMP_DEFAULT_BRIGHTNESS)
+
+  if status.mode != LAMP_DEFAULT_MODE:
+    device.lamp.set_mode(LAMP_DEFAULT_MODE)
+
+  status = device.lamp.status()
+
+  assert not status.is_on
+  assert status.color == LAMP_DEFAULT_RGB
+  assert status.brightness == LAMP_DEFAULT_BRIGHTNESS
+  assert status.mode == LAMP_DEFAULT_MODE
+  assert status.timer_s == 0
+
+
+def pytest_collection_modifyitems(items):
+  def test_order(item):
+    if item.get_closest_marker('first'):
+      return 0, item.path.as_posix()
+    
+    if item.get_closest_marker('ota_gatekeeper'):
+      return 1, item.path.as_posix()
+
+    if item.get_closest_marker('smoke'):
+      return 2, item.path.as_posix()
+    
+    if item.get_closest_marker('regression'):
+      if item.get_closest_marker('positive'):
+        return 3, item.path.as_posix()
+
+      if item.get_closest_marker('negative'):
+        return 4, item.path.as_posix()
+
+      return 3, item.path.as_posix()
+
+    return 5, item.path.as_posix()
+
+  items.sort(key=test_order)
+
+
+@pytest.fixture(scope='session', autouse=True)
+def ota_server_session(request):
+  # Each full-cycle stage is a separate pytest process. The runner owns the server.
+  if os.getenv(SERVER_MANAGED_ENV) == '1':
+    url = os.getenv(SERVER_URL_ENV)
+    if not url:
+      raise RuntimeError(f'{SERVER_URL_ENV} is missing from the firmware matrix runner')
+    yield url
+    return
+
+  # Pure unit tests have no hardware/server requirements.
+  unit_dir = request.config.rootpath / 'tests' / 'unit'
+  if request.session.items and all(unit_dir in item.path.parents for item in request.session.items):
+    yield
+    return
+
+  with running_ota_server() as url:
+    reporter = request.config.pluginmanager.get_plugin('terminalreporter')
+    if reporter:
+      reporter.write_line(f'OTA server URL: {url}')
+    yield url
+
+
+@pytest.fixture(scope='session')
+def ota_server_url(ota_server_session):
+  if not ota_server_session:
+    raise RuntimeError('OTA server URL is unavailable')
+  return ota_server_session
+
+
+@pytest.fixture(scope='session')
+def hil():
+  connector = UARTConnector(HIL_PORT)
+  connector.open()
+
+  try:
+    driver = HILDriver(connector)
+
+    def hil_is_ready():
+      try:
+        response = driver.help()
+        return any('[HIL] Commands:' in line for line in response)
+      except DeviceTimeoutError:
+        return False
+
+    wait_for_condition(
+      hil_is_ready,
+      timeout=30,
+      interval=0.5,
+      error_message='HIL did not become ready.',
+    )
+
+    print('HIL ready. Powering on DUT.')
+    driver.power_on()
+
+    wait_for_condition(
+      lambda: find_device_port(fail_if_missing=False) is not None,
+      timeout=30,
+      interval=0.5,
+      error_message='DUT COM port did not appear after HIL power_on.',
+    )
+
+    driver.init_endpoints()
+    yield driver
+  finally:
+    connector.close()
+
+
+@pytest.fixture(scope='session')
+def ota_device(ota_server_session):
+  port = find_device_port()
+  connector = UARTConnector(port)
+  connector.open()
+
+  try:
+    yield DeviceDriver(connector)
+  finally:
+    connector.close()
+
+
+@pytest.fixture(scope='session')
+def device(ota_device):
+  restore_default_lamp_state(ota_device)
+
+  yield ota_device
+
+  restore_default_lamp_state(ota_device)
+
+
+@pytest.fixture
+def lamp_on_device(device):
+  device.lamp.on()
+
+  yield device
+
+  device.lamp.off()
+
+
+@pytest.fixture
+def connected_device(device):
+  status = device.wifi.status()
+  print(f'WiFi status before connection: {status}')
+
+  if has_active_wifi_connection(device):
+    return device
+
+  result = device.wifi.connect(SSID, PASSWORD)
+  print(f'WiFi connection result: {result}')
+
+  assert result.connected, f'Failed to prepare connected DUT: {result.response}'
+
+  return device
+
+
+@pytest.fixture
+def disconnected_device(device):
+  disconnected = device.wifi.disconnect()
+  is_connected = has_active_wifi_connection(device)
+
+  assert disconnected, 'Failed to prepare disconnected DUT.'
+  assert not is_connected, 'DUT is still connected to Wi-Fi after disconnecting.'
+
+  return device
+
+
+@pytest.fixture
+def rebooted_device(device):
+  device.reboot()
+
+  return device
+
+
+@pytest.fixture(scope='session')
+def ota_smoke_state():
+  return {}
+
+
+@pytest.fixture
+def firmware_version(device) -> Version:
+  response = device.version()
+
+  for line in response:
+    match = re.search(r'(?:SENTRY SWM-2 sonar watch module,\s*fw|FW:)\s*v(\d+\.\d+\.\d+)', line)
+
+    if match:
+      return Version(match.group(1))
+
+  raise RuntimeError(f'Firmware version was not found in response: {response}')
+
+
+@pytest.fixture(autouse=True)
+def check_firmware_version(request):
+  fw_min = request.node.get_closest_marker('fw_min')
+  fw_only = request.node.get_closest_marker('fw_only')
+
+  if fw_min is None and fw_only is None:
+    return
+
+  firmware_version = request.getfixturevalue('firmware_version')
+
+  if fw_min:
+    required_version = Version(fw_min.args[0])
+
+    if firmware_version < required_version:
+      pytest.skip(
+        f'Requires firmware >= {required_version}, current firmware is {firmware_version}'
+      )
+
+  if fw_only:
+    required_version = Version(fw_only.args[0])
+
+    if firmware_version != required_version:
+      pytest.skip(
+        f'Requires firmware == {required_version}, current firmware is {firmware_version}'
+      )
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+  outcome = yield
+  report = outcome.get_result()
+
+  if item.get_closest_marker('ota_gatekeeper') and (report.failed or report.skipped):
+    item.session.shouldstop = (
+      f'OTA Gatekeeper failed: {item.nodeid} ({report.outcome}). Testing aborted.'
+    )

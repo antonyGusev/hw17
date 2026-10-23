@@ -1,0 +1,19 @@
+SENTRY fw_7 local OTA server
+  files:  C:\embedded\hw17\lib\utilities\server_files\fw7
+          beta.txt
+          broken
+          stable.txt
+          v2.1.0
+          v2.3.0
+On the device (after login):
+  ota server http://192.168.68.109:8000/fw7/
+  ota url http://192.168.68.109:8000/test/garbage.bin
+Stop: Ctrl+C. Back to GitHub on the device: ota server default
+[08:19:25] 192.168.68.104 "GET /fw7/stable.txt HTTP/1.1" 200 -
+[08:19:25] 192.168.68.104 "GET /fw7/beta.txt HTTP/1.1" 200 -
+[08:19:37] 192.168.68.104 "GET /fw7/stable.txt HTTP/1.1" 200 -
+[08:19:37] 192.168.68.104 "GET /fw7/beta.txt HTTP/1.1" 200 -
+[08:31:25] 192.168.68.104 "GET /fw7/stable.txt HTTP/1.1" 200 -
+[08:31:25] 192.168.68.104 "GET /fw7/beta.txt HTTP/1.1" 200 -
+[08:31:39] 192.168.68.104 "GET /fw7/stable.txt HTTP/1.1" 200 -
+[08:31:39] 192.168.68.104 "GET /fw7/beta.txt HTTP/1.1" 200 -
