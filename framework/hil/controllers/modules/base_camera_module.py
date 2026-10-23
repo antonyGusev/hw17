@@ -15,7 +15,7 @@ WHITE_VALUE_MIN = 180
 BLACK_VALUE_MAX = 50
 
 # Fixed camera ROI containing the physical lamp.
-CAMERA_ROI = (280, 355, 75, 75)
+CAMERA_ROI = (262, 368, 75, 75)
 
 
 class BaseCameraModule(ABC):

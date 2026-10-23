@@ -8,7 +8,17 @@ from lib import read_firmware
 
 
 def guard(device, subcommand):
-  return log_text(device._connector.execute_command(f'guard {subcommand}'))
+  if subcommand != 'status':
+    return log_text(device._connector.execute_command(f'guard {subcommand}'))
+
+  # A 100 ms UART idle gap can occur between echo and Guard status output.
+  lines = device._connector.execute_command('guard status', until=('zone', 'E8'), timeout=10)
+  status = log_text(lines)
+  if not re.search(r'\b(?:DISARMED|ARMED|ARMING|ALARM|INTRUSION)\b', status, re.I) and 'E8' not in status:
+    lines.extend(device._connector.wait_for_response(
+      ('DISARMED', 'ARMED', 'ARMING', 'ALARM', 'INTRUSION', 'E8'), timeout=5,
+    ))
+  return log_text(lines)
 
 
 @pytest.mark.tc('TC-OTA-046')

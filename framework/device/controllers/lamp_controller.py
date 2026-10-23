@@ -23,43 +23,71 @@ class LampController:
     self._connector = connector
 
   def on(self) -> list[str]:
-    return self._connector.execute_command('lamp on', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      'lamp on', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
+
+  def toggle(self) -> list[str]:
+    return self._connector.execute_command(
+      'lamp toggle', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50')
+    )
 
   def off(self) -> list[str]:
-    return self._connector.execute_command('lamp off', until=('[BEACON]', '[LAMP]', 'W510', 'E50', 'E51'))
-  
+    return self._connector.execute_command(
+      'lamp off', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
+
   def status_raw(self) -> list[str]:
-    return self._connector.execute_command('lamp status', until=('mode', 'E003', 'E005'))
+    return self._connector.execute_command(
+      'lamp status', until=(' s left', 'timer off', 'timer 0 s', 'E002', 'E003', 'E005'), timeout=5
+    )
 
   def status(self) -> LampStatus:
     return self._parse_status(self.status_raw())
 
   def set_color(self, name: str) -> list[str]:
-    return self._connector.execute_command(f'lamp color {name}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp color {name}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def set_rgb(self, red: int, green: int, blue: int) -> list[str]:
-    return self._connector.execute_command(f'lamp color {red} {green} {blue}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp color {red} {green} {blue}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def set_brightness(self, brightness: int) -> list[str]:
-    return self._connector.execute_command(f'lamp brightness {brightness}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp brightness {brightness}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def set_mode(self, mode: str) -> list[str]:
-    return self._connector.execute_command(f'lamp mode {mode}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp mode {mode}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def set_timer(self, seconds: int) -> list[str]:
-    return self._connector.execute_command(f'lamp timer {seconds}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp timer {seconds}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def save_scene(self, scene: int) -> list[str]:
-    return self._connector.execute_command(f'lamp scene save {scene}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp scene save {scene}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def load_scene(self, scene: int) -> list[str]:
-    return self._connector.execute_command(f'lamp scene load {scene}', until=('[BEACON]', '[LAMP]', 'E50', 'E51'))
+    return self._connector.execute_command(
+      f'lamp scene load {scene}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
+    )
 
   def execute(self, subcommand: str) -> list[str]:
     """Execute a raw lamp subcommand for protocol-level validation."""
     # Keep a generic escape hatch for protocol-level negative tests such as
     # `lamp blabla` without exposing the UART connector to the test layer.
-    return self._connector.execute_command(f'lamp {subcommand}', until=('E50', 'E51', '[BEACON]', '[LAMP]'))  
+    return self._connector.execute_command(
+      f'lamp {subcommand}',
+      until=('E003', 'E005', 'E50', 'E51', 'E001', 'W510', 'unknown', '[BEACON]', '[LAMP]'),
+    )
 
   # region Service Methods
 
@@ -75,9 +103,7 @@ class LampController:
       try:
         candidate = json.loads(line)
       except json.JSONDecodeError as exc:
-        raise ResponseParseError(
-          f'Lamp status contains invalid JSON: {line}'
-        ) from exc
+        raise ResponseParseError(f'Lamp status contains invalid JSON: {line}') from exc
 
       if isinstance(candidate, dict) and candidate.get('lamp') in ('on', 'off'):
         payload = candidate
@@ -86,13 +112,17 @@ class LampController:
     if payload is None:
       # fw_7 documents a text status, not the fw_1.x JSON contract.
       text = '\n'.join(response)
-      state = re.search(r'\b(ON|off)\b\s*,?\s*color', text, re.I)
+      state = re.search(r'\b(ON|off)\b\s*,?\s*color', text, re.I) or re.search(
+        r'\blamp\s*:?\s*(ON|off)\b', text, re.I
+      )
       rgb = re.search(r'color\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', text, re.I)
       bright = re.search(r'brightness\s*:?\s*(\d+)\s*%', text, re.I)
       mode = re.search(r'mode\s*:?\s*(solid|blink|breathe|rainbow)\b', text, re.I)
       timer = re.search(r'timer\s*:?\s*(\d+)\s*s\s*(?:left)?', text, re.I)
+      
       if not (state and rgb and bright and mode):
         raise ResponseParseError(f'Lamp status format was not recognized: {response}')
+      
       return LampStatus(
         lamp=state.group(1).lower(),
         color=tuple(int(n) for n in rgb.groups()),
@@ -105,9 +135,7 @@ class LampController:
     missing_fields = [field for field in required_fields if field not in payload]
 
     if missing_fields:
-      raise ResponseParseError(
-        f'Lamp status is missing fields {missing_fields}: {payload}'
-      )
+      raise ResponseParseError(f'Lamp status is missing fields {missing_fields}: {payload}')
 
     color = payload['color']
 

@@ -165,7 +165,7 @@ void releaseAllButtons() {
   writeButtons();
 }
 
-void pressButton(uint8_t pin, const char* name) {
+void pressButton(uint8_t pin, const char* name, uint32_t durationMs = PRESS_TIME_MS) {
   if (pcfAddress == 0) {
     Serial.println("[HIL] ERROR: button expander unavailable");
     return;
@@ -178,7 +178,7 @@ void pressButton(uint8_t pin, const char* name) {
     return;
   }
 
-  delay(PRESS_TIME_MS);
+  delay(durationMs);
   pcfOutputs &= ~(1 << pin);
   if (writeButtons()) {
     Serial.printf("[HIL] %s release\n", name);
@@ -794,6 +794,9 @@ void printHelp() {
     "  k4              - emulate K4 press");
 
   Serial.println(
+    "  hold <k1|k2|k3|k4> <seconds> - hold button (0.05-30 s)");
+
+  Serial.println(
     "  power_on        - enable DUT USB power");
 
   Serial.println(
@@ -1099,6 +1102,48 @@ void loop() {
     pressButton(
       HIL_K4,
       "K4");
+  }
+
+  else if (command.startsWith("hold ")) {
+    String parameters = command.substring(5);
+    int separator = parameters.indexOf(' ');
+
+    if (separator < 0) {
+      Serial.println("[HIL] ERROR: usage: hold <k1|k2|k3|k4> <seconds>");
+    } else {
+      String button = parameters.substring(0, separator);
+      String timeValue = parameters.substring(separator + 1);
+      timeValue.trim();
+
+      bool validTime = timeValue.length() > 0;
+      uint8_t dots = 0;
+      for (size_t i = 0; i < timeValue.length(); i++) {
+        if (timeValue[i] == '.') dots++;
+        if (!isDigit(timeValue[i]) && timeValue[i] != '.') {
+          validTime = false;
+          break;
+        }
+      }
+
+      float seconds = validTime && dots <= 1 ? timeValue.toFloat() : 0;
+      if (seconds < 0.05f || seconds > 30.0f) {
+        Serial.println("[HIL] ERROR: hold duration must be 0.05-30 s");
+      } else {
+        uint8_t pin;
+        if (button == "k1") pin = HIL_K1;
+        else if (button == "k2") pin = HIL_K2;
+        else if (button == "k3") pin = HIL_K3;
+        else if (button == "k4") pin = HIL_K4;
+        else {
+          Serial.println("[HIL] ERROR: unknown button");
+          return;
+        }
+
+        const char* name = button == "k1" ? "K1" :
+          button == "k2" ? "K2" : button == "k3" ? "K3" : "K4";
+        pressButton(pin, name, static_cast<uint32_t>(seconds * 1000));
+      }
+    }
   }
 
   else if (command.startsWith("pcf_test ")) {

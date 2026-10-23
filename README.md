@@ -244,9 +244,15 @@ The old `station_WiFi_v1.3.0_merged.bin` is *not* a fw_7 image and is never
 used for this matrix. `poe full_cycle_no_flash` runs against a DUT already
 flashed with fw_7 v2.1.0 and cannot validate factory-default `first` tests.
 
-The original Lamp tests remain in the matrix by design; their firmware-specific
-expectations must be checked separately against fw_7 before treating Lamp
-results as valid.
+The `tests/lamp` suite now uses fw_7 LM-1–LM-8 command expectations and a separate
+`lamp_device` fixture. Existing camera photo/video analysis is unchanged. LM-8
+priority cases that need unavailable fault injection remain manual.
+
+**HIL long press:** Flash the updated `artifacts/firmware/hil-controller/hil-controller.ino`
+to the HIL ESP32 before TC-LAMP-042. The firmware supports `hold k1 1.7`
+(also k2–k4; duration in seconds, 0.05–30). In Python use
+`hil.buttons.hold('k1', 1.7)`; existing `hil.buttons.k1()` stays a 150 ms press.
+The HIL controller releases the selected button automatically.
 
 ### Framework unit tests
 

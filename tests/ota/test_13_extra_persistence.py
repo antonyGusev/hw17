@@ -36,6 +36,8 @@ def test_changed_password_persists_upgrade_downgrade_rollback(ota_connected_devi
 
   def login_new_and_reject_old(stage, check_old=False):
     ensure_connection(device)
+    # Verify credentials with a fresh session; do not accept the pre-existing login.
+    command(device, 'logout')
     login_ok = device.auth.login(login, new_password)
     who = log_text(device.auth.whoami())
     assert login_ok and re.search(rf'user:\s*{re.escape(login)}\b', who), (
@@ -58,6 +60,8 @@ def test_changed_password_persists_upgrade_downgrade_rollback(ota_connected_devi
   try:
     assert 'E215' not in command(device, f'passwd {original_password} {new_password}')
     changed = True
+    # Establish that passwd actually took effect before attributing a failure to OTA.
+    login_new_and_reject_old('before upgrade', check_old=True)
     install_and_verify(device, beta)
     login_new_and_reject_old('after upgrade', check_old=True)
     install_and_verify(device, stable, force=True)
