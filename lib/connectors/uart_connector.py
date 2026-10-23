@@ -74,6 +74,24 @@ class UARTConnector:
   def wait_for_response(self, pattern: ResponsePattern, timeout: float) -> list[str]:
     return self._read_response(timeout, pattern)
 
+  # Collect a streaming response until no more lines arrive for idle_timeout seconds.
+  # Useful when firmware has no fixed completion marker (e.g. fw_7 Wi-Fi scan).
+  def read_until_quiet(self, timeout: float = 5, idle_timeout: float = 0.6) -> list[str]:
+    self._ensure_open()
+    lines: list[str] = []
+    deadline = time.monotonic() + timeout
+    quiet_deadline = time.monotonic() + idle_timeout
+
+    while time.monotonic() < deadline:
+      line = self._read_line()
+      if line is not None:
+        lines.append(line)
+        quiet_deadline = time.monotonic() + idle_timeout
+      elif time.monotonic() >= quiet_deadline:
+        break
+
+    return lines
+
   # region Service methods
 
   # Read and collect response lines.

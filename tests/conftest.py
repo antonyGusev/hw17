@@ -56,6 +56,10 @@ def restore_default_lamp_state(device):
 
 def pytest_collection_modifyitems(items):
   def test_order(item):
+    tc = item.get_closest_marker('tc')
+    if tc and tc.args and tc.args[0] in ('TC-WIFI-020', 'TC-WIFI-025'):
+      return -1, item.path.as_posix()
+
     if item.get_closest_marker('first'):
       return 0, item.path.as_posix()
     

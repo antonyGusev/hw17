@@ -65,3 +65,46 @@ def test_ntp_failure_warning_does_not_cancel_wifi_connection():
     'W (2) sentry: W106 [LINK] time: NTP sync failed',
   ]
   assert BuoyController(FakeConnector(response)).reconnect().connected
+
+
+class ScanConnector:
+  def __init__(self, scan_header, scan_tail):
+    self.scan_header = scan_header
+    self.scan_tail = scan_tail
+    self.calls = []
+
+  def execute_command(self, command, until=None, timeout=None):
+    self.calls.append((command, until, timeout))
+    return list(self.scan_header)
+
+  def read_until_quiet(self, timeout=5, idle_timeout=0.6):
+    self.calls.append(('read_until_quiet', timeout, idle_timeout))
+    return list(self.scan_tail)
+
+
+def test_scan_collects_all_networks_without_count_header():
+  connector = ScanConnector(
+    ['scan', 'I (1) sentry: [LINK] scanning...',
+     'I (2) sentry:   [ 1] lab_ap -45 dBm  ch  5  secured'],
+    ['I (3) sentry:   [ 2] guest_ap -72 dBm  ch 11  secured'],
+  )
+  networks = BuoyController(connector).scan()
+  assert [(network.number, network.ssid, network.rssi, network.channel) for network in networks] == [
+    (1, 'lab_ap', -45, 5), (2, 'guest_ap', -72, 11),
+  ]
+  assert connector.calls == [
+    ('scan', ('dBm', 'found 0 networks:', 'E108'), 15),
+    ('read_until_quiet', 5, 0.6),
+  ]
+
+
+def test_scan_zero_networks_needs_no_followup_read():
+  connector = ScanConnector(['scan', 'found 0 networks:'], [])
+  assert BuoyController(connector).scan() == []
+  assert len(connector.calls) == 2
+
+
+def test_scan_error_returns_no_networks():
+  connector = ScanConnector(['scan', 'E (1) sentry: E108 scan failed'], [])
+  assert BuoyController(connector).scan() == []
+  assert len(connector.calls) == 1

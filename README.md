@@ -235,6 +235,16 @@ verified between stages, and OTA tests restore the firmware they started with.
 | `poe negative_tests` | Negative tests |
 | `poe ota` | OTA tests only, using their entry firmware as the baseline |
 | `poe unit` | Framework unit tests (no DUT, HIL or OTA server) |
+| `poe wifi` | Wi-Fi HIL tests excluding `first` (requires configured SSID/PASSWORD) |
+
+**Wi-Fi coverage (fw_7):** `poe wifi` runs the standalone Wi-Fi HIL suite
+excluding clean-device scenarios. TC-WIFI-020 and TC-WIFI-025 run only in the
+`first` stage immediately after a full flash erase. Wi-Fi tests restore the
+lab SSID using `.env` values `SSID` and `PASSWORD`; `TC-WIFI-019` intentionally
+forgets NVS credentials and restores them during fixture teardown. A controlled
+AP/router is still required to automate E103/E104/E105/W106/W107/E108 and
+network-loss retry scenarios (TC-WIFI-026–033). Ping and post-sync time cases
+(TC-WIFI-023/024) await verified fw_7 UART examples for reliable assertions.
 
 **Flashing:** the fw_7 v2.1.0 merged binary is included at
 `artifacts/firmware/device/sentry_fw7_v2.1.0_merged.bin`.
@@ -283,3 +293,56 @@ shared with pytest stages through `OTA_TEST_SERVER` in the process environment;
 Do not configure a static `OTA_TEST_SERVER` in `.env`. The ESP32 must be able
 to reach the detected LAN IP. Starting the server does **not** implicitly
 change the DUT's configured OTA source; the relevant tests configure it themselves.
+
+### Console step logging (opt-in)
+
+Use `@log_step` on the methods you want to trace. The decorator prints the
+class/method name, **passed arguments**, the returned value or exception, and
+execution time. It does not alter the method's return value or error handling.
+
+```python
+from lib import log_step
+
+class DeviceDriver:
+  @log_step
+  def reboot(self) -> list[str]:
+    # Keep the existing implementation unchanged.
+    ...
+
+class HILDriver:
+  @log_step
+  def power_cycle(self) -> list[str]:
+    ...
+```
+
+Set `STEP_LOG_LEVEL` in `.env` (or in the process environment):
+
+| Value | Console output |
+| --- | --- |
+| `verbose` (default) | Every decorated call, arguments, result, duration |
+| `warning` | Only firmware `W###`/`E###`, failed boolean results, and exceptions |
+| `error` | Only firmware `E###`, failed boolean results, and exceptions |
+| `silent` | Nothing |
+
+Optional `STEP_LOG_MAX_LENGTH=1200` limits each result to 1200 characters. The
+logger masks known sensitive argument names (`password`, `pin`, `token`, etc.),
+corresponding values in results, and common CLI login/registration commands.
+Avoid decorating methods returning arbitrary unstructured secrets: automatic
+masking is best-effort.
+
+Example output:
+
+```text
+[17:32:01] [STEP] #1 DeviceDriver.version(wait=True)
+[17:32:01] [OK] #1 DeviceDriver.version(wait=True) -> ['version', '...'] (0.10s)
+[17:32:02] [WARNING] #2 LampController.on() -> ['W510 lamp already on'] (0.03s)
+[17:32:03] [ERROR] #3 HILDriver.power_on() -> DeviceTimeoutError: ... (2.00s)
+```
+
+The output goes to the real console even when pytest captures `stdout`, so
+`poe lamp` and `poe full_cycle` show steps without `-s`. **Only decorated
+methods are traced.** Most commands, such as `device.lamp.on()` and
+`hil.buttons.hold()`, are methods of controller objects, **not** methods of
+`DeviceDriver` or `HILDriver`; decorate `LampController.on`,
+`ButtonsController.hold`, etc. if you want those operations logged. The
+camera photo/video analysis code is unchanged.

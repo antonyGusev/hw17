@@ -37,19 +37,15 @@ class BuoyController:
     self._connector = connector
 
   def scan(self) -> list[BuoyNetwork]:
-    # WF-4 guarantees SSID and RSSI, but not a channel or a fixed scan footer.
-    response = self._connector.execute_command('scan', timeout=15)
-    count_match = re.search(r'found\s+(\d+)\s+networks:', '\n'.join(response), re.I)
+    # fw_7 emits "[LINK] scanning..." followed by numbered APs, without
+    # the older "found N networks:" header or a reliable completion marker.
+    response = self._connector.execute_command(
+      'scan', until=('dBm', 'found 0 networks:', 'E108'), timeout=15,
+    )
+    if any('E108' in line for line in response):
+      return []
 
-    if count_match:
-      count = int(count_match.group(1))
-      if count == 0:
-        return []
-      if len(self._parse_networks(response)) < count:
-        last = (f'[{count:2d}]', f'[{count}]')
-        # The previous fw printed an indexed list after the count line.
-        response.extend(self._connector.wait_for_response(last, timeout=5))
-
+    response.extend(self._connector.read_until_quiet(timeout=5, idle_timeout=0.6))
     return self._parse_networks(response)
 
   def connect(self, ssid: str | int | None = None, password: str | None = None,
@@ -133,7 +129,7 @@ class BuoyController:
       if not ssid_match or not rssi_match:
         continue
 
-      channel_match = re.search(r'\bCH:\s*(\d+)', line, re.I)
+      channel_match = re.search(r'\bch\s*:?\s*(\d+)', line, re.I)
       networks.append(BuoyNetwork(
         number=int(index.group(1)), ssid=ssid_match.group(1).strip(),
         rssi=int(rssi_match.group(1)),

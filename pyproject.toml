@@ -59,6 +59,7 @@ full_cycle_no_flash = 'python run_firmware_matrix.py --no-flash'
 
 ota = 'pytest tests/ota'
 lamp = 'pytest tests/lamp'
+wifi = 'pytest tests/wifi'
 
 flash = "python flash_device.py"
 

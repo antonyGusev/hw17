@@ -43,11 +43,20 @@ def test_broken_image_automatic_rollback(ota_connected_device):
 def test_manual_rollback(ota_connected_device, ota_versions):
   device = ota_connected_device
   original, original_slot, _ = read_firmware(device)
+
   other = ota_versions['stable'] if original == ota_versions['beta'] else ota_versions['beta']
+
   install_and_verify(device, other, force=(other < original))
+
   version, slot, _ = read_firmware(device)
+  assert version == other
+  assert slot != original_slot
+
   require_login(device)
+
   response = log_text(device.ota.rollback())
   assert 'E416' not in response and 'E417' not in response, response
+
   wait_boot(device)
+
   assert read_firmware(device) == (original, original_slot, 'valid')
