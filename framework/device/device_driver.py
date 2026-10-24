@@ -24,7 +24,9 @@ class DeviceDriver:
     self.led = LedController(connector)
     self.ota = OtaController(connector)
     self.buoy = BuoyController(connector)
-    self.wifi = self.buoy  # Compatibility for existing tests; use device.buoy in new code.
+
+    for name in ('auth', 'alarm', 'config', 'distance', 'lamp', 'led', 'ota', 'buoy'):
+      getattr(self, name)._log_path = f'DeviceDriver.{name}'
 
   @log_step
   def help(self) -> list[str]:

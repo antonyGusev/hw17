@@ -11,7 +11,7 @@ from lib import has_active_wifi_connection, read_firmware
 def test_ota_without_wifi(ota_connected_device, command):
   device = ota_connected_device
   before = read_firmware(device)
-  assert device.wifi.disconnect()
+  assert device.buoy.disconnect()
   assert not has_active_wifi_connection(device)
   try:
     response = log_text(device.ota.execute(command, until=('E002', 'E411'), timeout=20))

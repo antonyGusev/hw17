@@ -39,7 +39,7 @@ def ensure_connection(device):
     return
 
   # Autoconnect is explicitly disabled in fw_7. Prefer saved credentials.
-  result = device.wifi.reconnect()
+  result = device.buoy.reconnect()
 
   if has_active_wifi_connection(device):
     return
@@ -48,7 +48,7 @@ def ensure_connection(device):
     f'Wi-Fi reconnect failed, SSID/PASSWORD not configured: {result.response}'
   )
 
-  result = device.wifi.connect(SSID, PASSWORD)
+  result = device.buoy.connect(SSID, PASSWORD)
 
   assert has_active_wifi_connection(device), (
     f'Wi-Fi connection failed (no active LAN connection): {result.response}'

@@ -12,8 +12,8 @@ from .utilities import (
   ensure_wifi_connected,
   find_device_port,
   has_active_wifi_connection,
-  read_firmware,
   log_step,
+  read_firmware,
   running_ota_server,
   wait_for_condition,
 )
@@ -32,8 +32,8 @@ __all__ = [
   'ensure_wifi_connected',
   'find_device_port',
   'has_active_wifi_connection',
-  'read_firmware',
   'log_step',
+  'read_firmware',
   'running_ota_server',
   'wait_for_condition',
 ]

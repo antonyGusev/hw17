@@ -15,6 +15,11 @@ class HILDriver:
     self.buttons = ButtonsController(connector)
     self.camera = CameraController(self._camera_endpoints)
 
+    self.buttons._log_path = 'HILDriver.buttons'
+    self.camera._log_path = 'HILDriver.camera'
+    self.camera.photo._log_path = 'HILDriver.camera.photo'
+    self.camera.video._log_path = 'HILDriver.camera.video'
+
   @log_step
   def help(self) -> list[str]:
     return self._connector.execute_command('help')

@@ -28,7 +28,7 @@ def test_lamp_is_off_after_reboot(lamp_on_device, lamp_login):
   saved = lamp_on_device.lamp.status()
   lamp_on_device.reboot()
   # fw_7 does not reconnect automatically after reboot.
-  lamp_on_device.wifi.reconnect()
+  lamp_on_device.buoy.reconnect()
   lamp_login(lamp_on_device)
   status = lamp_on_device.lamp.status()
   assert not status.is_on

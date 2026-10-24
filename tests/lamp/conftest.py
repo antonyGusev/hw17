@@ -12,10 +12,10 @@ LAMP_PASSWORD = 'OtaQa_2026'
 
 def ensure_lamp_login(device):
   if not has_active_wifi_connection(device):
-    device.wifi.reconnect()
+    device.buoy.reconnect()
     if not has_active_wifi_connection(device):
       assert SSID and PASSWORD, 'Wi-Fi is disconnected and SSID/PASSWORD are not configured'
-      device.wifi.connect(SSID, PASSWORD)
+      device.buoy.connect(SSID, PASSWORD)
       assert has_active_wifi_connection(device), 'Cannot establish Wi-Fi before lamp login'
 
   who = '\n'.join(device.auth.whoami())

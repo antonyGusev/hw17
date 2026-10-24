@@ -4,8 +4,7 @@ from typing import TypeAlias
 
 import serial
 
-from ..utilities import DeviceNotConnectedError, DeviceTimeoutError
-from ..utilities.step_logger import log_step
+from ..utilities import DeviceNotConnectedError, DeviceTimeoutError, log_step
 
 ResponsePattern: TypeAlias = str | tuple[str, ...]
 

@@ -1,4 +1,4 @@
-from lib.utilities.step_logger import log_step
+from lib.utilities.logger import attach_artifact, log_step
 from abc import ABC
 from pathlib import Path
 
@@ -133,6 +133,8 @@ class BaseCameraModule(ABC):
     if not cv2.imwrite(str(output_path), output):
       raise RuntimeError(f'Failed to save debug image: {output_path}')
 
+    attach_artifact(output_path)
+
   @log_step
   def save_roi(self, frame: np.ndarray, path: str) -> None:
     """Save only the analyzed lamp ROI as an artifact."""
@@ -143,6 +145,8 @@ class BaseCameraModule(ABC):
 
     if not cv2.imwrite(str(output_path), roi):
       raise RuntimeError(f'Failed to save ROI image: {output_path}')
+
+    attach_artifact(output_path)
     
   # region Service methods
 

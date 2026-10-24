@@ -45,7 +45,7 @@ class FakeAuth:
 class FakeDevice:
   def __init__(self, stored=None):
     self.auth = FakeAuth(stored)
-    self.wifi = type('Wifi', (), {
+    self.buoy = type('Wifi', (), {
       'status': lambda self: WifiStatus(True, 'test-ap', '192.168.1.2', -42)
     })()
 

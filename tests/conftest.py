@@ -199,13 +199,13 @@ def lamp_on_device(device):
 
 @pytest.fixture
 def connected_device(device):
-  status = device.wifi.status()
+  status = device.buoy.status()
   print(f'WiFi status before connection: {status}')
 
   if has_active_wifi_connection(device):
     return device
 
-  result = device.wifi.connect(SSID, PASSWORD)
+  result = device.buoy.connect(SSID, PASSWORD)
   print(f'WiFi connection result: {result}')
 
   assert result.connected, f'Failed to prepare connected DUT: {result.response}'
@@ -215,7 +215,7 @@ def connected_device(device):
 
 @pytest.fixture
 def disconnected_device(device):
-  disconnected = device.wifi.disconnect()
+  disconnected = device.buoy.disconnect()
   is_connected = has_active_wifi_connection(device)
 
   assert disconnected, 'Failed to prepare disconnected DUT.'

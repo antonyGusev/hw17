@@ -17,24 +17,24 @@ def assert_error(result, error):
 @pytest.mark.regression
 @pytest.mark.negative
 def test_reject_incorrect_password(wifi_disconnected):
-  assert_error(wifi_disconnected.wifi.connect(SSID, WRONG_PASSWORD), 'E101')
-  assert not wifi_disconnected.wifi.status().connected
+  assert_error(wifi_disconnected.buoy.connect(SSID, WRONG_PASSWORD), 'E101')
+  assert not wifi_disconnected.buoy.status().connected
 
 
 @pytest.mark.tc('TC-WIFI-015')
 @pytest.mark.regression
 @pytest.mark.negative
 def test_reject_short_password(wifi_disconnected):
-  assert_error(wifi_disconnected.wifi.connect(SSID, '1234567'), 'E112')
-  assert not wifi_disconnected.wifi.status().connected
+  assert_error(wifi_disconnected.buoy.connect(SSID, '1234567'), 'E112')
+  assert not wifi_disconnected.buoy.status().connected
 
 
 @pytest.mark.tc('TC-WIFI-016')
 @pytest.mark.regression
 @pytest.mark.negative
 def test_unknown_ssid_does_not_hang_cli(wifi_disconnected):
-  assert_error(wifi_disconnected.wifi.connect(UNKNOWN_SSID, PASSWORD), 'E102')
-  assert not wifi_disconnected.wifi.status().connected
+  assert_error(wifi_disconnected.buoy.connect(UNKNOWN_SSID, PASSWORD), 'E102')
+  assert not wifi_disconnected.buoy.status().connected
   response = wifi_disconnected._connector.execute_command(
     'help', until='Commands (', timeout=10,
   )
@@ -50,20 +50,20 @@ def test_connect_recovers_after_several_rejections(wifi_disconnected):
     (SSID, '1234567', 'E112'),
     (UNKNOWN_SSID, PASSWORD, 'E102'),
   ):
-    assert_error(wifi_disconnected.wifi.connect(ssid, password), error)
-    assert not wifi_disconnected.wifi.status().connected
+    assert_error(wifi_disconnected.buoy.connect(ssid, password), error)
+    assert not wifi_disconnected.buoy.status().connected
 
-  result = wifi_disconnected.wifi.connect(SSID, PASSWORD)
+  result = wifi_disconnected.buoy.connect(SSID, PASSWORD)
   assert result.connected, result.response
-  assert wifi_disconnected.wifi.status().ssid == SSID
+  assert wifi_disconnected.buoy.status().ssid == SSID
 
 
 @pytest.mark.tc('TC-WIFI-018')
 @pytest.mark.regression
 @pytest.mark.negative
 def test_reject_empty_ssid(wifi_disconnected):
-  assert_error(wifi_disconnected.wifi.connect('', PASSWORD), 'E111')
-  assert not wifi_disconnected.wifi.status().connected
+  assert_error(wifi_disconnected.buoy.connect('', PASSWORD), 'E111')
+  assert not wifi_disconnected.buoy.status().connected
 
 
 @pytest.mark.tc('TC-WIFI-019')
@@ -71,11 +71,11 @@ def test_reject_empty_ssid(wifi_disconnected):
 @pytest.mark.positive
 def test_forget_removes_saved_credentials(wifi_connected):
   device = wifi_connected
-  device.wifi.forget()
+  device.buoy.forget()
   device.reboot()
-  result = device.wifi.reconnect()
+  result = device.buoy.reconnect()
   assert_error(result, 'E113')
-  assert not device.wifi.status().connected
+  assert not device.buoy.status().connected
   # wifi_device fixture reconnects the known lab AP on teardown.
 
 
@@ -84,10 +84,10 @@ def test_forget_removes_saved_credentials(wifi_connected):
 @pytest.mark.regression
 @pytest.mark.negative
 def test_reconnect_already_connected_warns(wifi_connected):
-  before = wifi_connected.wifi.status()
-  result = wifi_connected.wifi.reconnect()
+  before = wifi_connected.buoy.status()
+  result = wifi_connected.buoy.reconnect()
   assert any('W114' in line for line in result.response), result.response
-  after = wifi_connected.wifi.status()
+  after = wifi_connected.buoy.status()
   assert after.connected and after.ssid == before.ssid and after.ip == before.ip
 
 
@@ -99,4 +99,4 @@ def test_disconnect_when_already_disconnected_warns(wifi_disconnected):
     'disconnect', until='W115', timeout=10,
   )
   assert any('W115' in line for line in response), response
-  assert not wifi_disconnected.wifi.status().connected
+  assert not wifi_disconnected.buoy.status().connected

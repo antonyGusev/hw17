@@ -86,7 +86,7 @@ def has_active_wifi_connection(device) -> bool:
 
 def ensure_wifi_connected(device):
   if not has_active_wifi_connection(device):
-    result = device.wifi.connect(SSID, PASSWORD)
+    result = device.buoy.connect(SSID, PASSWORD)
     assert result.connected, f'Wi-Fi connection failed: {result.response}'
 
 

@@ -5,6 +5,7 @@ requires-python = '>=3.11'
 dependencies = [
   'pytest>=8.2',
   'pytest-asyncio',
+  'allure-pytest>=2.13',
   'pyserial>=3.5',
   'poethepoet>=0.29',
   'bleak',
@@ -88,6 +89,21 @@ choices = [
 options = ['--log-level']
 default = 'verbose'
 choices = ['debug', 'verbose', 'warning', 'error', 'silent']
+
+# Allure always records driver/controller steps, independent of STEP_LOG_LEVEL.
+# PYTEST_ADDOPTS is inherited by pytest subprocesses in the firmware matrix.
+[tool.poe.tasks.reported]
+cmd = 'poe ${suite}'
+help = 'Run an existing suite and collect steps plus HIL artifacts in Allure'
+env = { STEP_LOG_REPORTER = 'allure', PYTEST_ADDOPTS = '--alluredir=artifacts/allure-results' }
+
+[tool.poe.tasks.reported.args.suite]
+positional = true
+choices = [
+  'default_state_tests', 'gatekeeper', 'smoke', 'regression',
+  'positive_tests', 'negative_tests', 'all', 'unit',
+  'ota', 'lamp', 'wifi', 'full_cycle', 'full_cycle_no_flash',
+]
 
 [tool.ruff]
 line-length = 100

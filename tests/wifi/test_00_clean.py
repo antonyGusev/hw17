@@ -15,6 +15,6 @@ def test_time_unavailable_before_first_ntp_sync(ota_device):
 @pytest.mark.first
 @pytest.mark.negative
 def test_reconnect_without_saved_credentials(ota_device):
-  result = ota_device.wifi.reconnect()
+  result = ota_device.buoy.reconnect()
   assert result.error == 'E113', result.response
-  assert not ota_device.wifi.status().connected
+  assert not ota_device.buoy.status().connected

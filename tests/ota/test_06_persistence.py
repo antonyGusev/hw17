@@ -21,7 +21,7 @@ def test_wifi_and_lamp_persist_upgrade(ota_connected_device, ota_versions):
     device.lamp.set_mode('breathe')
     install_and_verify(device, target)
     ensure_connection(device)  # fw_7 does not autoconnect at boot.
-    assert device.wifi.status().ssid == SSID
+    assert device.buoy.status().ssid == SSID
     require_login(device)
     current = device.lamp.status()
     assert not current.is_on, 'Lamp must be OFF after reboot (LM-1)'
@@ -86,7 +86,7 @@ def test_lamp_settings_persist_forced_downgrade(ota_connected_device, ota_versio
     require_login(device)
     status = device.lamp.status()
     assert (status.color, status.brightness, status.mode) == ((12, 34, 56), 37, 'breathe')
-    assert device.wifi.status().ssid == SSID
+    assert device.buoy.status().ssid == SSID
   finally:
     restore_firmware(device, original)
     require_login(device)

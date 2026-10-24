@@ -13,8 +13,8 @@ from lib import DeviceTimeoutError, has_active_wifi_connection, wait_for_conditi
 @pytest.mark.smoke
 @pytest.mark.positive
 def test_connect_by_ssid(wifi_disconnected):
-  result = wifi_disconnected.wifi.connect(SSID, PASSWORD)
-  status = wifi_disconnected.wifi.status()
+  result = wifi_disconnected.buoy.connect(SSID, PASSWORD)
+  status = wifi_disconnected.buoy.status()
   output = '\n'.join(result.response)
   assert result.connected, output
   assert "got ip" in output.lower(), output
@@ -28,8 +28,8 @@ def test_connect_by_ssid(wifi_disconnected):
 @pytest.mark.regression
 @pytest.mark.positive
 def test_connect_by_scan_index(wifi_disconnected):
-  result = wifi_disconnected.wifi.connect(SSID, PASSWORD, by_number=True)
-  status = wifi_disconnected.wifi.status()
+  result = wifi_disconnected.buoy.connect(SSID, PASSWORD, by_number=True)
+  status = wifi_disconnected.buoy.status()
   assert result.connected, result.response
   assert status.connected and status.ssid == SSID and status.rssi is not None, status
 
@@ -38,22 +38,22 @@ def test_connect_by_scan_index(wifi_disconnected):
 @pytest.mark.regression
 @pytest.mark.positive
 def test_reconnect_with_saved_credentials(wifi_disconnected):
-  result = wifi_disconnected.wifi.reconnect()
+  result = wifi_disconnected.buoy.reconnect()
   assert result.connected, result.response
   assert has_active_wifi_connection(wifi_disconnected)
-  assert wifi_disconnected.wifi.status().ssid == SSID
+  assert wifi_disconnected.buoy.status().ssid == SSID
 
 
 @pytest.mark.tc('TC-WIFI-004')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_disconnect_preserves_saved_credentials(wifi_connected):
-  assert wifi_connected.wifi.disconnect()
+  assert wifi_connected.buoy.disconnect()
   assert not has_active_wifi_connection(wifi_connected)
   assert wifi_connected.help()
-  result = wifi_connected.wifi.reconnect()
+  result = wifi_connected.buoy.reconnect()
   assert result.connected, result.response
-  assert wifi_connected.wifi.status().ssid == SSID
+  assert wifi_connected.buoy.status().ssid == SSID
 
 
 @pytest.mark.tc('TC-WIFI-005')
@@ -64,9 +64,9 @@ def test_saved_credentials_survive_reboot_without_auto_connect(wifi_connected):
   output = '\n'.join(boot)
   assert re.search(r'known network.*reconnect', output, re.I), boot
   assert not has_active_wifi_connection(wifi_connected), 'Unexpected auto-connect after reboot'
-  result = wifi_connected.wifi.reconnect()
+  result = wifi_connected.buoy.reconnect()
   assert result.connected, result.response
-  assert wifi_connected.wifi.status().ssid == SSID
+  assert wifi_connected.buoy.status().ssid == SSID
 
 
 @pytest.mark.tc('TC-WIFI-034')
@@ -94,9 +94,9 @@ def test_saved_credentials_survive_power_cycle(wifi_connected, hil):
 
     wait_for_condition(cli_ready, timeout=30, interval=0.5)
     assert not has_active_wifi_connection(device), 'Unexpected auto-connect after power cycle'
-    result = device.wifi.reconnect()
+    result = device.buoy.reconnect()
     assert result.connected, result.response
-    assert device.wifi.status().ssid == SSID
+    assert device.buoy.status().ssid == SSID
   finally:
     if not device.is_open:
       device.open()

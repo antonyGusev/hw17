@@ -332,3 +332,43 @@ During pytest, step messages use pytest's live-logging handler (`log_cli` in
 Outside pytest, the logger writes directly to the console. Masking is best-effort: do not return arbitrary plaintext secrets
 from custom methods. Warnings and errors originating from nested calls may be
 shown at more than one layer. Unhandled exceptions are re-raised unchanged.
+
+### Allure step reporting
+
+The loggers are grouped in `lib/utilities/logger/`: `step_logger.py` routes calls,
+`console_logger.py` handles console output, and `allure_logger.py` handles Allure.
+`common.py` contains shared argument formatting, secret masking, method paths,
+and layer detection. The reporters do not import each other; the router imports
+only the selected implementation when it is first used.
+
+`@log_step` selects the destination through `STEP_LOG_REPORTER`:
+
+- `console` (default): existing `STEP_LOG_LEVEL=debug|verbose|warning|error|silent` behavior.
+- `allure`: **always verbose** with no Allure logging levels. Records driver and
+  controller methods with sanitized arguments and result/exception attachments;
+  connectors and camera modules are not listed as steps.
+
+Enable an Allure run with the same Poe suites:
+
+```powershell
+poe reported lamp
+poe reported wifi
+poe reported full_cycle
+```
+
+The `reported` task passes `--alluredir=artifacts/allure-results` to pytest,
+including pytest subprocesses launched by `full_cycle`. Existing JPEG/PNG
+artifacts created by HIL camera saves and MP4 artifacts created by video
+verification are attached to the current test/step. File saving and camera
+analysis are unchanged. Files saved outside a pytest test are not associated
+with a test report.
+
+Install the Allure Commandline separately to view generated results:
+
+```powershell
+allure serve artifacts/allure-results
+```
+
+Allure reporting and attachment errors never mask device exceptions. Avoid
+including plaintext secrets in custom return values; argument redaction is
+best effort.

@@ -1,4 +1,4 @@
-from lib.utilities.step_logger import log_step
+from lib.utilities.logger import attach_artifact, log_step
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -354,5 +354,7 @@ class VideoModule(BaseCameraModule):
         writer.write(frame)
     finally:
       writer.release()
+
+    attach_artifact(output_path)
 
   # endregion

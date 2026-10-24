@@ -3,7 +3,7 @@ import inspect
 import pytest
 
 from lib.utilities import log_step
-from lib.utilities import step_logger
+from lib.utilities.logger import console_logger as step_logger
 
 
 class ExampleDevice:
@@ -165,7 +165,7 @@ def test_verbose_hides_connector_but_keeps_controller_and_driver(messages, monke
   assert device.help() == ['[BEACON] on']
   starts = [line for line in messages if '[STEP]' in line]
   assert len(starts) == 2
-  assert 'LampController.on' in starts[0]
+  assert 'DeviceDriver.lamp.on' in starts[0]
   assert 'DeviceDriver.help' in starts[1]
   assert all('UARTConnector' not in line for line in messages)
 
@@ -306,3 +306,49 @@ def test_missing_log_level_defaults_to_silent(monkeypatch):
   assert step_logger._log_level() == 'silent'
   assert ExampleDevice().version() == ['version', 'I (10) sentry: firmware v2.1.0']
   assert messages == []
+
+
+def test_verbose_uses_driver_paths_for_controller_methods(messages, monkeypatch):
+  from framework.device.device_driver import DeviceDriver
+  from framework.hil.hil_driver import HILDriver
+
+  connector = _mock_uart(monkeypatch)
+  device = DeviceDriver(connector)
+  assert not hasattr(device, 'wifi')
+  assert device.lamp.on() == ['[BEACON] on']
+  assert device.buoy._log_path == 'DeviceDriver.buoy'
+  monkeypatch.setattr(connector, '_read_response', lambda timeout, until=None: ["W114 connected to 'test-ap'"])
+  assert device.buoy.reconnect().connected
+  monkeypatch.setattr(connector, '_read_response', lambda timeout, until=None: ['[BEACON] on'])
+
+  hil = HILDriver(connector)
+  assert hil.buttons.k1() == ['[BEACON] on']
+  starts = [line for line in messages if '[STEP]' in line]
+  assert any('DeviceDriver.lamp.on()' in line for line in starts)
+  assert any('DeviceDriver.buoy.reconnect()' in line for line in starts)
+  assert any('HILDriver.buttons.k1()' in line for line in starts)
+
+
+def test_debug_uses_module_path_without_changing_camera_logic(messages, monkeypatch):
+  from framework.hil.hil_driver import HILDriver
+
+  monkeypatch.setenv('STEP_LOG_LEVEL', 'debug')
+  hil = HILDriver(_mock_uart(monkeypatch))
+  assert hil.camera.photo._log_path == 'HILDriver.camera.photo'
+  assert hil.camera.video._log_path == 'HILDriver.camera.video'
+  np = pytest.importorskip('numpy')
+  hil.camera.photo.get_roi(np.zeros((500, 500, 3), dtype=np.uint8))
+  assert any('HILDriver.camera.photo.get_roi(' in line for line in messages)
+
+
+def test_verbose_lamp_status_uses_driver_path(messages):
+  from framework.device.device_driver import DeviceDriver
+
+  class StubConnector:
+    def execute_command(self, command, **kwargs):
+      return ['{"lamp":"on","color":[255,255,255],"brightness":50,"mode":"solid","timer_s":0}']
+
+  assert DeviceDriver(StubConnector()).lamp.status().is_on
+  steps = [line for line in messages if '[STEP]' in line]
+  assert 'DeviceDriver.lamp.status()' in steps[0]
+  assert 'DeviceDriver.lamp.status_raw()' in steps[1]

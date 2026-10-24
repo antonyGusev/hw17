@@ -11,7 +11,7 @@ from config import SSID
 @pytest.mark.regression
 @pytest.mark.positive
 def test_connected_status_and_network_details(wifi_connected):
-  status = wifi_connected.wifi.status()
+  status = wifi_connected.buoy.status()
   assert status.connected and status.ssid == SSID, status
   assert status.ip and status.ip != '0.0.0.0' and status.rssi is not None, status
   response = wifi_connected._connector.execute_command(
@@ -28,9 +28,9 @@ def test_connected_status_and_network_details(wifi_connected):
 @pytest.mark.regression
 @pytest.mark.positive
 def test_disconnected_status(wifi_disconnected):
-  status = wifi_disconnected.wifi.status()
+  status = wifi_disconnected.buoy.status()
   assert not status.connected and status.ip is None, status
-  result = wifi_disconnected.wifi.reconnect()
+  result = wifi_disconnected.buoy.reconnect()
   assert result.connected, result.response
 
 
@@ -38,7 +38,7 @@ def test_disconnected_status(wifi_disconnected):
 @pytest.mark.regression
 @pytest.mark.positive
 def test_scan_includes_reference_ssid_and_rssi(wifi_device):
-  networks = wifi_device.wifi.scan()
+  networks = wifi_device.buoy.scan()
   matching = [network for network in networks if network.ssid == SSID]
   assert matching, f'SSID {SSID!r} missing from scan: {networks}'
   assert all(network.number > 0 and -100 <= network.rssi <= 0 for network in matching)

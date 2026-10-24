@@ -4,3 +4,5 @@
 build/
 embedded_tests.egg-info/
 __pycache__/
+artifacts/allure-results
+artifacts/ota_server.log

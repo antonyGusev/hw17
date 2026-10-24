@@ -8,20 +8,20 @@ from lib import has_active_wifi_connection
 
 def ensure_lab_wifi(device):
   assert SSID and PASSWORD, 'Configure SSID and PASSWORD for Wi-Fi HIL tests'
-  status = device.wifi.status()
+  status = device.buoy.status()
   if status.connected and status.ssid == SSID:
     return
 
   if status.connected:
-    assert device.wifi.disconnect(), f'Cannot leave the previous AP: {status}'
+    assert device.buoy.disconnect(), f'Cannot leave the previous AP: {status}'
 
-  device.wifi.reconnect()
-  status = device.wifi.status()
+  device.buoy.reconnect()
+  status = device.buoy.status()
   if status.connected and status.ssid == SSID:
     return
 
-  result = device.wifi.connect(SSID, PASSWORD)
-  status = device.wifi.status()
+  result = device.buoy.connect(SSID, PASSWORD)
+  status = device.buoy.status()
   assert status.connected and status.ssid == SSID, (
     f'Cannot restore lab Wi-Fi: {result.response}; status={status}'
   )
@@ -45,6 +45,6 @@ def wifi_connected(wifi_device):
 
 @pytest.fixture
 def wifi_disconnected(wifi_connected):
-  assert wifi_connected.wifi.disconnect()
+  assert wifi_connected.buoy.disconnect()
   assert not has_active_wifi_connection(wifi_connected)
   return wifi_connected
