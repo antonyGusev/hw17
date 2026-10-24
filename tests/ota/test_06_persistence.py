@@ -1,11 +1,17 @@
 import pytest
-from helpers import ensure_connection, install_and_verify, require_login, restore_firmware
 
 from config import SSID
-from lib import read_firmware
+from lib import (
+  ensure_connection,
+  install_and_verify,
+  read_firmware,
+  require_login,
+  restore_firmware,
+)
 
 
 @pytest.mark.tc('TC-OTA-015')
+@pytest.mark.fw_only('2.1.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_wifi_and_lamp_persist_upgrade(ota_connected_device, ota_versions):
@@ -36,6 +42,7 @@ def test_wifi_and_lamp_persist_upgrade(ota_connected_device, ota_versions):
 
 
 @pytest.mark.tc('TC-OTA-016')
+@pytest.mark.fw_only('2.1.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_scenes_persist_upgrade(ota_connected_device, ota_versions):
@@ -70,6 +77,7 @@ def test_scenes_persist_upgrade(ota_connected_device, ota_versions):
 
 
 @pytest.mark.tc('TC-OTA-017')
+@pytest.mark.fw_only('2.3.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_lamp_settings_persist_forced_downgrade(ota_connected_device, ota_versions):

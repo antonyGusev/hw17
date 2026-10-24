@@ -8,6 +8,22 @@ from .exceptions import (
 )
 from .flasher import FirmwareFlasher
 from .logger import log_step
+from .ota_helpers import (
+  BOOT_READY,
+  OTA_TEMP_PASSWORD,
+  OTA_TEST_LOGIN,
+  OTA_TEST_PASSWORD,
+  VERSION_PATTERN,
+  check_versions,
+  ensure_connection,
+  install_and_verify,
+  log_text,
+  ota_success,
+  require_login,
+  require_version,
+  restore_firmware,
+  wait_boot,
+)
 from .ota_server_manager import SERVER_MANAGED_ENV, SERVER_URL_ENV, running_ota_server
 from .utilities import (
   ensure_wifi_connected,
@@ -18,6 +34,20 @@ from .utilities import (
 )
 
 __all__ = [
+  'BOOT_READY',
+  'OTA_TEMP_PASSWORD',
+  'OTA_TEST_LOGIN',
+  'OTA_TEST_PASSWORD',
+  'VERSION_PATTERN',
+  'check_versions',
+  'ensure_connection',
+  'install_and_verify',
+  'log_text',
+  'ota_success',
+  'require_login',
+  'require_version',
+  'restore_firmware',
+  'wait_boot',
   'SERVER_MANAGED_ENV',
   'SERVER_URL_ENV',
   'DeviceError',

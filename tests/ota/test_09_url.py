@@ -1,9 +1,8 @@
 import pytest
-from helpers import log_text, ota_success, wait_boot
 from packaging.version import Version
 
 from config import OTA_HTTPS_URL, OTA_HTTPS_VERSION, OTA_VALID_IMAGE_URLS
-from lib import read_firmware
+from lib import log_text, ota_success, read_firmware, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-023')

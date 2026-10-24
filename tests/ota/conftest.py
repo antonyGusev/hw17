@@ -1,8 +1,7 @@
 import pytest
-from helpers import check_versions, require_login, restore_firmware
 from packaging.version import Version
 
-from lib import read_firmware
+from lib import check_versions, read_firmware, require_login, restore_firmware
 
 
 @pytest.fixture(scope='session', autouse=True)

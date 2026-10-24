@@ -1,9 +1,8 @@
 import re
 
 import pytest
-from helpers import VERSION_PATTERN, log_text, wait_boot
 
-from lib import read_firmware
+from lib import VERSION_PATTERN, log_text, read_firmware, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-001')

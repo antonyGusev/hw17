@@ -18,17 +18,17 @@ from lib import (
   SERVER_MANAGED_ENV,
   UARTConnector,
   find_device_port,
+  ota_success,
   read_firmware,
+  require_login,
   running_ota_server,
+  wait_boot,
 )
 
 ROOT = Path(__file__).resolve().parent
 VERSIONS = (Version('2.1.0'), Version('2.3.0'))
 
 
-# Use the same Wi-Fi/auth/boot logic as the fw_7 OTA tests, not the old Wi-Fi CLI.
-sys.path.insert(0, str(ROOT / 'tests' / 'ota'))
-from tests.ota.helpers import ota_success, require_login, wait_boot
 
 FAILURE_REPORTS = []
 ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;]*m')
@@ -152,9 +152,9 @@ def main(no_flash: bool = False) -> int:
         os.environ['OTA_PRISTINE_SINGLE_SLOT'] = previous_flag
     check_version(VERSIONS[0])
 
-  # Gatekeeper checks critical OTA operations, including upgrade and downgrade.
-  # Any failed or skipped gatekeeper test stops the entire matrix.
-  run_pytest(f'{VERSIONS[0]}: OTA gatekeeper', ['-m', 'ota_gatekeeper'], allow_failures=False)
+  # Run the stable-applicable gatekeepers before the first firmware transition.
+  # The beta-only downgrade gatekeeper runs after installing 2.3.0.
+  run_pytest(f'{VERSIONS[0]}: OTA gatekeeper', ['-m', 'ota_gatekeeper and not fw_only'], allow_failures=False)
   check_version(VERSIONS[0])
 
   for index, version in enumerate(VERSIONS):
@@ -164,6 +164,10 @@ def main(no_flash: bool = False) -> int:
 
     print(f'\n######## Firmware {version} ########', flush=True)
     check_version(version)
+
+    if version == VERSIONS[1]:
+      run_pytest(f'{version}: OTA gatekeeper', ['-m', 'ota_gatekeeper and fw_only'], allow_failures=False)
+      check_version(version)
 
     # Existing pytest_collection_modifyitems orders smoke, positive regression,
     # negative regression and remaining tests exactly as in the reference project.

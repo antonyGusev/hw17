@@ -1,19 +1,19 @@
 import re
 
 import pytest
-from helpers import (
+
+from lib import (
   OTA_TEMP_PASSWORD,
   OTA_TEST_LOGIN,
   OTA_TEST_PASSWORD,
   ensure_connection,
   install_and_verify,
   log_text,
+  read_firmware,
   require_login,
   restore_firmware,
   wait_boot,
 )
-
-from lib import read_firmware
 
 
 def command(device, cmd, until=None, timeout=None):
@@ -21,6 +21,7 @@ def command(device, cmd, until=None, timeout=None):
 
 
 @pytest.mark.tc('TC-OTA-042')
+@pytest.mark.fw_only('2.1.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_changed_password_persists_upgrade_downgrade_rollback(ota_connected_device, ota_versions):
@@ -81,6 +82,7 @@ def test_changed_password_persists_upgrade_downgrade_rollback(ota_connected_devi
 
 
 @pytest.mark.tc('TC-OTA-043')
+@pytest.mark.fw_only('2.1.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_relay_auto_and_cycles_persist_upgrade(ota_connected_device, ota_versions):
@@ -109,6 +111,7 @@ def test_relay_auto_and_cycles_persist_upgrade(ota_connected_device, ota_version
 
 
 @pytest.mark.tc('TC-OTA-045')
+@pytest.mark.fw_only('2.1.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_health_configuration_persists_upgrade(ota_connected_device, ota_versions):

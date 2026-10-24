@@ -1,7 +1,6 @@
 import pytest
-from helpers import ensure_connection, log_text
 
-from lib import has_active_wifi_connection, read_firmware
+from lib import ensure_connection, has_active_wifi_connection, log_text, read_firmware
 
 
 @pytest.mark.tc('TC-OTA-014')

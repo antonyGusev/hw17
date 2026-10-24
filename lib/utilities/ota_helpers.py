@@ -5,7 +5,8 @@ import pytest
 from packaging.version import Version
 
 from config import PASSWORD, SSID
-from lib import DeviceTimeoutError, has_active_wifi_connection, read_firmware
+from .exceptions import DeviceTimeoutError
+from .utilities import has_active_wifi_connection, read_firmware
 
 VERSION_PATTERN = r'(?:SENTRY SWM-2 sonar watch module,\s*fw|FW:)\s*v?(\d+\.\d+\.\d+)'
 BOOT_READY = 'ready. state'  # fw_7 CLI is ready only after OTA self-check has completed

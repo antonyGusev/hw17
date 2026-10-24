@@ -26,8 +26,11 @@ def test_fw7_matrix_runs_gatekeeper_and_both_versions(monkeypatch):
   assert runner.main() == 0
   assert events[0] == ('flash',)
   assert [event[1] for event in events if event[0] == 'pytest'] == [
-    '2.1.0: first', '2.1.0: OTA gatekeeper', '2.1.0: suite', '2.3.0: suite',
+    '2.1.0: first', '2.1.0: OTA gatekeeper', '2.1.0: suite',
+    '2.3.0: OTA gatekeeper', '2.3.0: suite',
   ]
+  assert ('pytest', '2.1.0: OTA gatekeeper', ('-m', 'ota_gatekeeper and not fw_only')) in events
+  assert ('pytest', '2.3.0: OTA gatekeeper', ('-m', 'ota_gatekeeper and fw_only')) in events
   assert ('install', '2.1.0', '2.3.0') in events
   assert events[-1] == ('check', '2.3.0')
 

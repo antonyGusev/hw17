@@ -1,10 +1,9 @@
 import re
 
 import pytest
-from helpers import install_and_verify, log_text, require_login, restore_firmware
 
 from config import OTA_GUARD_CURRENT_PIN, OTA_GUARD_TEST_PIN
-from lib import read_firmware
+from lib import install_and_verify, log_text, read_firmware, require_login, restore_firmware
 
 
 def guard(device, subcommand):
@@ -22,6 +21,7 @@ def guard(device, subcommand):
 
 
 @pytest.mark.tc('TC-OTA-046')
+@pytest.mark.fw_only('2.3.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_guard_pin_and_zone_survive_downgrade(ota_connected_device, ota_versions):

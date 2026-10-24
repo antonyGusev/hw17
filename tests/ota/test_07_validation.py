@@ -1,9 +1,8 @@
 import re
 
 import pytest
-from helpers import install_and_verify, log_text, ota_success, require_login, wait_boot
 
-from lib import read_firmware
+from lib import install_and_verify, log_text, ota_success, read_firmware, require_login, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-018')

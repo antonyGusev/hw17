@@ -1,7 +1,6 @@
 import pytest
-from helpers import check_versions, install_and_verify, log_text, require_login
 
-from lib import read_firmware
+from lib import check_versions, install_and_verify, log_text, read_firmware, require_login
 
 
 @pytest.mark.tc('TC-OTA-003')
@@ -18,6 +17,7 @@ def test_ota_check_reports_channels(ota_connected_device, ota_versions):
 
 
 @pytest.mark.tc('TC-OTA-034')
+@pytest.mark.fw_only('2.3.0')
 @pytest.mark.regression
 @pytest.mark.positive
 def test_ota_check_on_newer_beta(ota_connected_device, ota_versions):
@@ -31,6 +31,7 @@ def test_ota_check_on_newer_beta(ota_connected_device, ota_versions):
 
 
 @pytest.mark.tc('TC-OTA-053')
+@pytest.mark.fw_only('2.3.0')
 @pytest.mark.regression
 @pytest.mark.negative
 def test_stable_update_does_not_downgrade_beta(ota_connected_device, ota_versions):

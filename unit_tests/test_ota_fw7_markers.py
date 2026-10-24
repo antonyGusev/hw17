@@ -1,5 +1,3 @@
-import importlib.util
-from pathlib import Path
 
 from packaging.version import Version
 
@@ -7,11 +5,7 @@ from framework.device import DeviceDriver
 from framework.device.controllers.lamp_controller import LampController
 
 
-spec = importlib.util.spec_from_file_location(
-  'fw7_ota_helpers_markers', Path(__file__).resolve().parents[1] / 'tests' / 'ota' / 'helpers.py'
-)
-helpers = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(helpers)
+from lib.utilities import ota_helpers as helpers
 
 
 class ConnectorStub:

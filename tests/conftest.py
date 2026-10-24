@@ -237,8 +237,8 @@ def ota_smoke_state():
 
 
 @pytest.fixture
-def firmware_version(device) -> Version:
-  response = device.version()
+def firmware_version(ota_device) -> Version:
+  response = ota_device.version()
 
   for line in response:
     match = re.search(r'(?:SENTRY SWM-2 sonar watch module,\s*fw|FW:)\s*v(\d+\.\d+\.\d+)', line)
@@ -271,6 +271,7 @@ def check_firmware_version(request):
     required_version = Version(fw_only.args[0])
 
     if firmware_version != required_version:
+      request.node._fw_version_skip = True
       pytest.skip(
         f'Requires firmware == {required_version}, current firmware is {firmware_version}'
       )
@@ -281,7 +282,8 @@ def pytest_runtest_makereport(item, call):
   outcome = yield
   report = outcome.get_result()
 
-  if item.get_closest_marker('ota_gatekeeper') and (report.failed or report.skipped):
+  expected_version_skip = report.skipped and getattr(item, '_fw_version_skip', False)
+  if item.get_closest_marker('ota_gatekeeper') and (report.failed or report.skipped) and not expected_version_skip:
     item.session.shouldstop = (
       f'OTA Gatekeeper failed: {item.nodeid} ({report.outcome}). Testing aborted.'
     )

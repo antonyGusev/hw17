@@ -1,8 +1,7 @@
 import pytest
-from helpers import log_text
 
 from config import OTA_OTHER_PROJECT_IMAGE_URL
-from lib import read_firmware
+from lib import log_text, read_firmware
 
 
 @pytest.mark.tc('TC-OTA-036')

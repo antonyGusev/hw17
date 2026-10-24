@@ -2,10 +2,9 @@ import re
 
 import pytest
 import serial
-from helpers import log_text, ota_success, require_login, wait_boot
 
 from config import OTA_PRISTINE_SINGLE_SLOT
-from lib import read_firmware, wait_for_condition
+from lib import log_text, ota_success, read_firmware, require_login, wait_boot, wait_for_condition
 
 
 @pytest.mark.tc('TC-OTA-020')

@@ -1,10 +1,9 @@
 from urllib.parse import urljoin
 
 import pytest
-from helpers import log_text, ota_success, wait_boot
 
 from config import OTA_CORRUPTED_IMAGES
-from lib import read_firmware
+from lib import log_text, ota_success, read_firmware, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-022')

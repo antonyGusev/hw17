@@ -1,9 +1,8 @@
 import re
 
 import pytest
-from helpers import install_and_verify, log_text, ota_success, require_login, wait_boot
 
-from lib import read_firmware
+from lib import install_and_verify, log_text, ota_success, read_firmware, require_login, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-006')
@@ -19,6 +18,7 @@ def test_install_exact_newer_release(ota_connected_device, ota_versions):
 
 
 @pytest.mark.tc('TC-OTA-007')
+@pytest.mark.fw_only('2.3.0')
 @pytest.mark.regression
 @pytest.mark.negative
 def test_nonforced_downgrade_blocked(ota_connected_device, ota_versions):
@@ -39,6 +39,7 @@ def test_nonforced_downgrade_blocked(ota_connected_device, ota_versions):
 
 
 @pytest.mark.tc('TC-OTA-008')
+@pytest.mark.fw_only('2.3.0')
 @pytest.mark.ota_gatekeeper
 @pytest.mark.positive
 def test_forced_downgrade(ota_connected_device, ota_versions):

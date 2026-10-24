@@ -8,7 +8,6 @@ from packaging.version import Version
 
 def load_ota_fixtures(monkeypatch):
   path = Path(__file__).resolve().parents[1] / 'tests' / 'ota'
-  monkeypatch.syspath_prepend(str(path))
   spec = importlib.util.spec_from_file_location('ota_baseline_fixtures', path / 'conftest.py')
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)

@@ -1,5 +1,5 @@
 import pytest
-from helpers import check_versions, log_text, require_login, wait_boot
+from lib import check_versions, log_text, require_login, wait_boot
 
 
 @pytest.mark.tc('TC-OTA-050')
