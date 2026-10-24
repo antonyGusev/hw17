@@ -2,7 +2,7 @@ import json
 import re
 from dataclasses import dataclass
 
-from lib import ResponseParseError, UARTConnector
+from lib import ResponseParseError, UARTConnector, log_step
 
 
 @dataclass
@@ -22,64 +22,77 @@ class LampController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def on(self) -> list[str]:
     return self._connector.execute_command(
       'lamp on', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def toggle(self) -> list[str]:
     return self._connector.execute_command(
       'lamp toggle', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50')
     )
 
+  @log_step
   def off(self) -> list[str]:
     return self._connector.execute_command(
       'lamp off', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def status_raw(self) -> list[str]:
     return self._connector.execute_command(
       'lamp status', until=(' s left', 'timer off', 'timer 0 s', 'E002', 'E003', 'E005'), timeout=5
     )
 
+  @log_step
   def status(self) -> LampStatus:
     return self._parse_status(self.status_raw())
 
+  @log_step
   def set_color(self, name: str) -> list[str]:
     return self._connector.execute_command(
       f'lamp color {name}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def set_rgb(self, red: int, green: int, blue: int) -> list[str]:
     return self._connector.execute_command(
       f'lamp color {red} {green} {blue}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def set_brightness(self, brightness: int) -> list[str]:
     return self._connector.execute_command(
       f'lamp brightness {brightness}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def set_mode(self, mode: str) -> list[str]:
     return self._connector.execute_command(
       f'lamp mode {mode}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def set_timer(self, seconds: int) -> list[str]:
     return self._connector.execute_command(
       f'lamp timer {seconds}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def save_scene(self, scene: int) -> list[str]:
     return self._connector.execute_command(
       f'lamp scene save {scene}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def load_scene(self, scene: int) -> list[str]:
     return self._connector.execute_command(
       f'lamp scene load {scene}', until=('[BEACON]', '[LAMP]', 'W510', 'E003', 'E50', 'E51')
     )
 
+  @log_step
   def execute(self, subcommand: str) -> list[str]:
     """Execute a raw lamp subcommand for protocol-level validation."""
     # Keep a generic escape hatch for protocol-level negative tests such as

@@ -1,3 +1,4 @@
+from lib.utilities.step_logger import log_step
 import itertools
 from typing import Literal
 
@@ -18,6 +19,7 @@ BRIGHTNESS_SAMPLES = 5
 class PhotoModule(BaseCameraModule):
   """Camera module for static image verification and measurements."""
 
+  @log_step
   def capture(self) -> np.ndarray:
     """Capture and decode a single frame from the camera."""
     response = requests.get(self._endpoints.capture_url, timeout=self.timeout)
@@ -31,6 +33,7 @@ class PhotoModule(BaseCameraModule):
 
     return frame
 
+  @log_step
   def verify(
     self,
     check: PhotoCheck,
@@ -55,6 +58,7 @@ class PhotoModule(BaseCameraModule):
 
     raise ValueError(f'Unsupported photo verification: {check}')
 
+  @log_step
   def measure(self, measurement: PhotoMeasurement) -> float:
     """Measure the requested physical lamp property."""
     if measurement == 'brightness':

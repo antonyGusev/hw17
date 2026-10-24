@@ -1,3 +1,4 @@
+from lib.utilities.step_logger import log_step
 from abc import ABC
 from pathlib import Path
 
@@ -27,6 +28,7 @@ class BaseCameraModule(ABC):
     self._endpoints = endpoints
     self.timeout = timeout
 
+  @log_step
   def get_roi(self, frame: np.ndarray) -> np.ndarray:
     """Extract the configured lamp ROI from the camera frame."""
     x, y, width, height = self._validated_roi(frame)
@@ -36,6 +38,7 @@ class BaseCameraModule(ABC):
       x : x + width,
     ]
 
+  @log_step
   def measure_color(self, roi: np.ndarray) -> tuple[int, int, int]:
     """Measure the median HSV color of valid lamp pixels inside the ROI."""
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
@@ -58,6 +61,7 @@ class BaseCameraModule(ABC):
       int(np.median(pixels[:, 2])),
     )
     
+  @log_step
   def measure_white(self, image: np.ndarray) -> tuple[int, int, int]:
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
@@ -71,13 +75,16 @@ class BaseCameraModule(ABC):
 
     return tuple(int(value) for value in np.median(pixels, axis=0))
 
+  @log_step
   def measure_roi_color(self, frame: np.ndarray) -> tuple[int, int, int]:
     """Measure the lamp HSV color directly from a full camera frame."""
     return self.measure_color(self.get_roi(frame))
   
+  @log_step
   def measure_roi_white(self, frame: np.ndarray) -> tuple[int, int, int]:
     return self.measure_white(self.get_roi(frame))
 
+  @log_step
   def measure_roi_intensity(self, frame: np.ndarray) -> float:
     """Measure the median brightness of the lamp ROI."""
     roi = self.get_roi(frame)
@@ -86,6 +93,7 @@ class BaseCameraModule(ABC):
     # The V channel represents brightness in HSV.
     return float(np.median(hsv[:, :, 2]))
 
+  @log_step
   def rgb_to_hsv(self, rgb: tuple[int, int, int]) -> tuple[int, int, int]:
     """Convert an RGB value to OpenCV HSV representation."""
     red, green, blue = rgb
@@ -96,6 +104,7 @@ class BaseCameraModule(ABC):
 
     return int(hsv[0]), int(hsv[1]), int(hsv[2])
 
+  @log_step
   def save_debug_image(self, frame: np.ndarray, path: str) -> None:
     """Save a full camera frame with the configured ROI highlighted."""
     output = frame.copy()
@@ -124,6 +133,7 @@ class BaseCameraModule(ABC):
     if not cv2.imwrite(str(output_path), output):
       raise RuntimeError(f'Failed to save debug image: {output_path}')
 
+  @log_step
   def save_roi(self, frame: np.ndarray, path: str) -> None:
     """Save only the analyzed lamp ROI as an artifact."""
     roi = self.get_roi(frame)

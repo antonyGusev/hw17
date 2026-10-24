@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 
-from lib import ResponseParseError, UARTConnector, UnexpectedResponseError
+from lib import ResponseParseError, UARTConnector, log_step, UnexpectedResponseError
 
 
 @dataclass
@@ -36,18 +36,26 @@ class BuoyController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def scan(self) -> list[BuoyNetwork]:
-    # fw_7 emits "[LINK] scanning..." followed by numbered APs, without
-    # the older "found N networks:" header or a reliable completion marker.
+    # WF-4 guarantees SSID and RSSI, but not a channel or a fixed scan footer.
     response = self._connector.execute_command(
-      'scan', until=('dBm', 'found 0 networks:', 'E108'), timeout=15,
+      'scan', until=('networks:', 'E108'), timeout=15,
     )
-    if any('E108' in line for line in response):
-      return []
+    count_match = re.search(r'found\s+(\d+)\s+networks:', '\n'.join(response), re.I)
 
-    response.extend(self._connector.read_until_quiet(timeout=5, idle_timeout=0.6))
+    if count_match:
+      count = int(count_match.group(1))
+      if count == 0:
+        return []
+      if len(self._parse_networks(response)) < count:
+        last = (f'[{count:2d}]', f'[{count}]')
+        # The previous fw printed an indexed list after the count line.
+        response.extend(self._connector.wait_for_response(last, timeout=5))
+
     return self._parse_networks(response)
 
+  @log_step
   def connect(self, ssid: str | int | None = None, password: str | None = None,
               by_number: bool = False) -> BuoyConnectResult:
     self._connector.write_command('connect')
@@ -71,10 +79,12 @@ class BuoyController:
     response.extend(self._connector.wait_for_response(self._CONNECTION_RESULT, timeout=45))
     return self._parse_connect_result(response)
 
+  @log_step
   def reconnect(self) -> BuoyConnectResult:
     response = self._connector.execute_command('reconnect', until=self._CONNECTION_RESULT, timeout=45)
     return self._parse_connect_result(response)
 
+  @log_step
   def disconnect(self) -> bool:
     response = self._connector.execute_command(
       'disconnect', until=('[LINK] disconnected', 'WiFi: disconnected', 'wifi station: disconnected', 'W115'),
@@ -84,22 +94,27 @@ class BuoyController:
       'disconnected' in line.lower() for line in response
     )
 
+  @log_step
   def forget(self) -> list[str]:
     # WF-3 does not specify a stable completion message for forget.
     return self._connector.execute_command('forget')
 
+  @log_step
   def net(self) -> list[str]:
     # WF-4 specifies IP / gateway / DNS / MAC but does not fix the wire format.
     return self._connector.execute_command('net')
 
+  @log_step
   def ping(self, host: str | None = None) -> list[str]:
     # With no host, firmware uses its documented default: 8.8.8.8.
     return self._connector.execute_command('ping' if host is None else f'ping {host}')
 
+  @log_step
   def time(self) -> list[str]:
     # E121 (time not synchronized) is returned unmodified to the caller.
     return self._connector.execute_command('time')
 
+  @log_step
   def status(self) -> BuoyStatus:
     # fw_7 status ends at heap:, not at the RSSI in the middle of the output.
     response = self._connector.execute_command('status', until='heap:', timeout=10)
@@ -129,7 +144,7 @@ class BuoyController:
       if not ssid_match or not rssi_match:
         continue
 
-      channel_match = re.search(r'\bch\s*:?\s*(\d+)', line, re.I)
+      channel_match = re.search(r'\bCH:\s*(\d+)', line, re.I)
       networks.append(BuoyNetwork(
         number=int(index.group(1)), ssid=ssid_match.group(1).strip(),
         rssi=int(rssi_match.group(1)),

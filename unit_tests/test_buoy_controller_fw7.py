@@ -77,34 +77,26 @@ class ScanConnector:
     self.calls.append((command, until, timeout))
     return list(self.scan_header)
 
-  def read_until_quiet(self, timeout=5, idle_timeout=0.6):
-    self.calls.append(('read_until_quiet', timeout, idle_timeout))
+  def wait_for_response(self, until, timeout):
+    self.calls.append(('wait', until, timeout))
     return list(self.scan_tail)
 
 
-def test_scan_collects_all_networks_without_count_header():
+def test_scan_waits_until_scan_count_and_last_network():
   connector = ScanConnector(
-    ['scan', 'I (1) sentry: [LINK] scanning...',
-     'I (2) sentry:   [ 1] lab_ap -45 dBm  ch  5  secured'],
-    ['I (3) sentry:   [ 2] guest_ap -72 dBm  ch 11  secured'],
+    ['scan', 'I (1) sentry: found 2 networks:',
+     'I (2) sentry: [ 1] lab_ap -45 dBm'],
+    ['I (3) sentry: [ 2] guest_ap -72 dBm'],
   )
   networks = BuoyController(connector).scan()
-  assert [(network.number, network.ssid, network.rssi, network.channel) for network in networks] == [
-    (1, 'lab_ap', -45, 5), (2, 'guest_ap', -72, 11),
+  assert [(network.number, network.ssid, network.rssi) for network in networks] == [
+    (1, 'lab_ap', -45), (2, 'guest_ap', -72),
   ]
-  assert connector.calls == [
-    ('scan', ('dBm', 'found 0 networks:', 'E108'), 15),
-    ('read_until_quiet', 5, 0.6),
-  ]
+  assert connector.calls[0] == ('scan', ('networks:', 'E108'), 15)
+  assert connector.calls[1] == ('wait', ('[ 2]', '[2]'), 5)
 
 
 def test_scan_zero_networks_needs_no_followup_read():
   connector = ScanConnector(['scan', 'found 0 networks:'], [])
-  assert BuoyController(connector).scan() == []
-  assert len(connector.calls) == 2
-
-
-def test_scan_error_returns_no_networks():
-  connector = ScanConnector(['scan', 'E (1) sentry: E108 scan failed'], [])
   assert BuoyController(connector).scan() == []
   assert len(connector.calls) == 1

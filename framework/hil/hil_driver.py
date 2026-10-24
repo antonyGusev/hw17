@@ -1,4 +1,4 @@
-from lib import UARTConnector
+from lib import UARTConnector, log_step
 
 from .controllers import ButtonsController, CameraController, CameraEndpoints
 
@@ -15,18 +15,23 @@ class HILDriver:
     self.buttons = ButtonsController(connector)
     self.camera = CameraController(self._camera_endpoints)
 
+  @log_step
   def help(self) -> list[str]:
     return self._connector.execute_command('help')
 
+  @log_step
   def camera_status(self) -> list[str]:
     return self._connector.execute_command('camera_status')
 
+  @log_step
   def camera_capture(self) -> list[str]:
     return self._connector.execute_command('camera_capture')
 
+  @log_step
   def camera_stream(self) -> list[str]:
     return self._connector.execute_command('camera_stream')
 
+  @log_step
   def init_endpoints(self):
     endpoints = self._initialize_camera_endpoints()
 
@@ -35,21 +40,26 @@ class HILDriver:
 
     return self
 
+  @log_step
   def power_on(self) -> list[str]:
     return self._connector.execute_command('power_on', until='[HIL] DUT power: ON')
 
+  @log_step
   def power_off(self) -> list[str]:
     return self._connector.execute_command('power_off', until='[HIL] DUT power: OFF')
 
+  @log_step
   def power_cycle(self) -> list[str]:
     return self._connector.execute_command('power_cycle', until='[HIL] DUT power: ON', timeout=10)
   
+  @log_step
   def relay_status(self) -> list[str]:
     return self._connector.execute_command(
       'relay_status',
       until='[HIL] RELAY:',
     )
     
+  @log_step
   def led_status(self) -> list[str]:
     return self._connector.execute_command(
       'led_status',

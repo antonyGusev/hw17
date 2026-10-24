@@ -1,6 +1,6 @@
 from typing import TypedDict
 
-from lib import UARTConnector
+from lib import UARTConnector, log_step
 
 FIELDS_MAP = {
   'State': 'state',
@@ -23,6 +23,7 @@ class AlarmController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def status(self) -> AlarmStatus:
     response = self._connector.execute_command('alarm status')
 
@@ -51,8 +52,10 @@ class AlarmController:
 
     return status
 
+  @log_step
   def arm(self) -> list[str]:
     return self._connector.execute_command('alarm arm')
 
+  @log_step
   def disarm(self) -> list[str]:
     return self._connector.execute_command('alarm disarm')

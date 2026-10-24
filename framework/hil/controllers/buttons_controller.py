@@ -1,7 +1,7 @@
 import math
 from typing import Literal
 
-from lib import UARTConnector
+from lib import UARTConnector, log_step
 
 Button = Literal['k1', 'k2', 'k3', 'k4']
 
@@ -10,18 +10,23 @@ class ButtonsController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def k1(self) -> list[str]:
     return self._press('k1')
 
+  @log_step
   def k2(self) -> list[str]:
     return self._press('k2')
 
+  @log_step
   def k3(self) -> list[str]:
     return self._press('k3')
 
+  @log_step
   def k4(self) -> list[str]:
     return self._press('k4')
   
+  @log_step
   def hold(self, button: Button, duration: float) -> list[str]:
     button = button.lower()
     if button not in ('k1', 'k2', 'k3', 'k4'):

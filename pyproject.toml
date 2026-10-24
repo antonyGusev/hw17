@@ -33,6 +33,9 @@ testpaths = ['tests']
 python_files = ['test_*.py']
 pythonpath = ['.']
 addopts = '-v --tb=short'
+log_cli = true
+log_cli_level = 'INFO'
+log_cli_format = '%(message)s'
 markers = [
   'ota_gatekeeper: critical OTA checks that block the entire test run',
   'smoke: general device smoke tests',
@@ -66,6 +69,25 @@ flash = "python flash_device.py"
 lint = 'ruff check .'
 format = 'ruff format .'
 init = 'pip install -e .'
+
+# Keep existing commands unchanged (and keep pytest argument forwarding).
+# Example: poe logged lamp --log-level warning
+[tool.poe.tasks.logged]
+cmd = 'poe ${suite}'
+help = 'Run an existing task with a selected step logger level'
+
+[tool.poe.tasks.logged.args.suite]
+positional = true
+choices = [
+  'default_state_tests', 'gatekeeper', 'smoke', 'regression',
+  'positive_tests', 'negative_tests', 'all', 'unit',
+  'ota', 'lamp', 'wifi', 'full_cycle', 'full_cycle_no_flash', 'flash',
+]
+
+[tool.poe.tasks.logged.args.STEP_LOG_LEVEL]
+options = ['--log-level']
+default = 'verbose'
+choices = ['debug', 'verbose', 'warning', 'error', 'silent']
 
 [tool.ruff]
 line-length = 100

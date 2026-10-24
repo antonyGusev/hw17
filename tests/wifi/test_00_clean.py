@@ -7,11 +7,7 @@ import pytest
 @pytest.mark.first
 @pytest.mark.negative
 def test_time_unavailable_before_first_ntp_sync(ota_device):
-  response = ota_device._connector.execute_command(
-    'time', until=('E121', 'E002'), timeout=10,
-  )
-  if any('E002' in line for line in response):
-    pytest.skip('E121 requires Wi-Fi connected but NTP unsynchronized; clean DUT returns E002')
+  response = ota_device._connector.execute_command('time', until='E121', timeout=10)
   assert any('E121' in line for line in response), response
 
 

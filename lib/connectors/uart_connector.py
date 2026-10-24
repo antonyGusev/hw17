@@ -5,6 +5,7 @@ from typing import TypeAlias
 import serial
 
 from ..utilities import DeviceNotConnectedError, DeviceTimeoutError
+from ..utilities.step_logger import log_step
 
 ResponsePattern: TypeAlias = str | tuple[str, ...]
 
@@ -29,6 +30,7 @@ class UARTConnector:
   def is_open(self) -> bool:
     return self.ser is not None and self.ser.is_open
 
+  @log_step
   def open(self) -> None:
     self.ser = serial.Serial(
       port=self.port,
@@ -41,6 +43,7 @@ class UARTConnector:
 
     self.ser.reset_input_buffer()
 
+  @log_step
   def close(self) -> None:
     if self.ser is not None and self.ser.is_open:
       self.ser.close()
@@ -48,6 +51,7 @@ class UARTConnector:
     self.ser = None
 
   # Send a command without waiting for a response.
+  @log_step
   def write_command(self, command: str) -> None:
     self._ensure_open()
 
@@ -57,6 +61,7 @@ class UARTConnector:
     self.ser.flush()
 
   # Send a command and collect its response.
+  @log_step
   def execute_command(
     self,
     command: str,
@@ -71,26 +76,9 @@ class UARTConnector:
     )
 
   # Wait for one of the expected patterns and return all lines received while waiting.
+  @log_step
   def wait_for_response(self, pattern: ResponsePattern, timeout: float) -> list[str]:
     return self._read_response(timeout, pattern)
-
-  # Collect a streaming response until no more lines arrive for idle_timeout seconds.
-  # Useful when firmware has no fixed completion marker (e.g. fw_7 Wi-Fi scan).
-  def read_until_quiet(self, timeout: float = 5, idle_timeout: float = 0.6) -> list[str]:
-    self._ensure_open()
-    lines: list[str] = []
-    deadline = time.monotonic() + timeout
-    quiet_deadline = time.monotonic() + idle_timeout
-
-    while time.monotonic() < deadline:
-      line = self._read_line()
-      if line is not None:
-        lines.append(line)
-        quiet_deadline = time.monotonic() + idle_timeout
-      elif time.monotonic() >= quiet_deadline:
-        break
-
-    return lines
 
   # region Service methods
 

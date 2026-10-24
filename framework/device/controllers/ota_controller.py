@@ -1,4 +1,4 @@
-from lib import UARTConnector
+from lib import UARTConnector, log_step
 
 
 class OtaController:
@@ -10,16 +10,19 @@ class OtaController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def execute(self, subcommand: str = '', until=None, timeout=60) -> list[str]:
     command = 'ota' if not subcommand else f'ota {subcommand}'
     if not subcommand and until is None:
       until = self._STATUS_COMPLETE
     return self._connector.execute_command(command, until=until, timeout=timeout)
 
+  @log_step
   def status(self, until=None, timeout=10) -> list[str]:
     # OTA-2 requires a previous/inactive slot. Do not stop on command echo.
     return self.execute('status', until=self._STATUS_COMPLETE if until is None else until, timeout=timeout)
 
+  @log_step
   def check(self, until=None, timeout=60) -> list[str]:
     return self.execute(
       'check',
@@ -30,6 +33,7 @@ class OtaController:
       timeout=timeout,
     )
 
+  @log_step
   def install(self, version: str, force: bool = False, until=None, timeout=120) -> list[str]:
     command = f'install {version}' + (' force' if force else '')
     return self.execute(
@@ -38,6 +42,7 @@ class OtaController:
       timeout=timeout,
     )
 
+  @log_step
   def update(self, beta: bool = False, until=None, timeout=120) -> list[str]:
     return self.execute(
       'update beta' if beta else 'update',
@@ -45,6 +50,7 @@ class OtaController:
       timeout=timeout,
     )
 
+  @log_step
   def url(self, url: str, force: bool = False, until=None, timeout=120) -> list[str]:
     return self.execute(
       f'url {url}' + (' force' if force else ''),
@@ -52,6 +58,7 @@ class OtaController:
       timeout=timeout,
     )
 
+  @log_step
   def broken(self, until=None, timeout=120, wait: bool = True) -> list[str] | None:
     if not wait:
       self._connector.write_command('ota broken')
@@ -62,6 +69,7 @@ class OtaController:
       timeout=timeout,
     )
 
+  @log_step
   def rollback(self, until=None, timeout=30) -> list[str]:
     return self.execute(
       'rollback',
@@ -69,6 +77,7 @@ class OtaController:
       timeout=timeout,
     )
 
+  @log_step
   def server(self, url: str | None = None, until=None, timeout=60) -> list[str]:
     return self.execute(
       'server' + (f' {url}' if url is not None else ''),

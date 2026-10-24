@@ -1,6 +1,6 @@
 from typing import Literal, TypeAlias
 
-from lib import UARTConnector, ResponseParseError
+from lib import UARTConnector, log_step, ResponseParseError
 
 # Restrict supported configuration keys at type-checking level.
 ConfigKey: TypeAlias = Literal['sensor_interval', 'alarm_threshold', 'dist_threshold']
@@ -10,9 +10,11 @@ class ConfigController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def set(self, key: ConfigKey, value: int) -> list[str]:
     return self._connector.execute_command(f'config set {key} {value}')
 
+  @log_step
   def get(self, key: ConfigKey) -> int:
     response = self._connector.execute_command(f'config get {key}')
 
@@ -27,8 +29,10 @@ class ConfigController:
 
     raise ResponseParseError(f'Config value "{key}" was not found in response: {response}')
 
+  @log_step
   def save(self) -> list[str]:
     return self._connector.execute_command('config save')
 
+  @log_step
   def load(self) -> list[str]:
     return self._connector.execute_command('config load')

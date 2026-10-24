@@ -1,22 +1,27 @@
-"""Opt-in console steps for synchronous device and HIL driver methods."""
+"""Layer-aware console step logging for device and HIL operations."""
 
 import inspect
 import itertools
+import logging
 import os
 import re
 import sys
 import time
-from collections.abc import Callable
 from datetime import datetime
+from contextvars import ContextVar
 from functools import wraps
-from typing import Literal, ParamSpec, TypeVar
+from typing import Callable, Literal, ParamSpec, TypeVar
 
-LogLevel = Literal['verbose', 'warning', 'error', 'silent']
+LogLevel = Literal['debug', 'verbose', 'warning', 'error', 'silent']
 
 P = ParamSpec('P')
 R = TypeVar('R')
 
 _STEP_NUMBERS = itertools.count(1)
+_STEP_LOGGER = logging.getLogger('embedded.step')
+_STEP_LOGGER.setLevel(logging.INFO)
+_STEP_LAYERS: ContextVar[tuple[str, ...]] = ContextVar('step_layers', default=())
+_STEP_SECRETS: ContextVar[tuple[str, ...]] = ContextVar('step_secrets', default=())
 _ERROR_CODE = re.compile(r'\bE\d{3}\b')
 _WARNING_CODE = re.compile(r'\bW\d{3}\b')
 _SECRET_FIELDS = ('password', 'passwd', 'pwd', 'pin', 'token', 'secret', 'credential', 'api_key')
@@ -26,9 +31,9 @@ _FIELD_VALUE = re.compile(r'(?i)\b(password|passwd|pwd|pin|token|secret|api_key)
 
 
 def _log_level() -> LogLevel:
-  level = os.getenv('STEP_LOG_LEVEL', 'verbose').strip().lower()
-  if level not in ('verbose', 'warning', 'error', 'silent'):
-    raise ValueError(f'Invalid STEP_LOG_LEVEL: {level!r}. Use verbose, warning, error or silent.')
+  level = os.getenv('STEP_LOG_LEVEL', 'silent').strip().lower()
+  if level not in ('debug', 'verbose', 'warning', 'error', 'silent'):
+    raise ValueError(f'Invalid STEP_LOG_LEVEL: {level!r}. Use debug, verbose, warning, error or silent.')
   return level
 
 
@@ -41,11 +46,16 @@ def _redact(text: str, secrets: list[str]) -> str:
     lambda match: f'{match.group(1)} ***' if match.group(1).lower() in ('sudo', 'passwd')
     else f'{match.group(1)} {match.group(2)} ***', text,
   )
-  text = _GUARD_COMMAND.sub(lambda match: f'{match.group(1)} ***', text)
+  text = _GUARD_COMMAND.sub(
+    lambda match: f'{match.group(1)} *** ***' if match.group(3) else f'{match.group(1)} ***', text,
+  )
   return _FIELD_VALUE.sub(lambda match: f'{match.group(1)}=***', text)
 
 
 def _display(value: object, secrets: list[str]) -> str:
+  # Debugging video must not stringify complete NumPy frames into memory/logs.
+  if hasattr(value, 'shape') and hasattr(value, 'dtype'):
+    return f'<{type(value).__name__} shape={value.shape} dtype={value.dtype}>'
   try:
     raw = repr(value)
   except Exception:
@@ -53,13 +63,13 @@ def _display(value: object, secrets: list[str]) -> str:
   return _redact(raw, secrets)
 
 
-def _arguments(signature: inspect.Signature, args: tuple, kwargs: dict) -> tuple[str, list[str]]:
+def _arguments(signature: inspect.Signature, args: tuple, kwargs: dict, inherited: tuple[str, ...] = ()) -> tuple[str, list[str]]:
   try:
     bound = signature.bind_partial(*args, **kwargs)
   except TypeError:
-    return '<invalid arguments>', []
+    return '<invalid arguments>', list(inherited)
 
-  secrets = []
+  secrets = list(inherited)
   for name, value in bound.arguments.items():
     if any(field in name.lower() for field in _SECRET_FIELDS):
       secrets.append(str(value))
@@ -90,17 +100,48 @@ def _max_length() -> int:
 
 
 def _emit(message: str) -> None:
-  # Pytest normally captures sys.stdout. Write to the original console so
-  # steps stay visible during `poe lamp` and subprocess-driven `poe full_cycle`.
-  stream = sys.__stdout__ or sys.stdout
-  if stream is not None:
-    print(f'[{datetime.now():%H:%M:%S}] {message}', file=stream, flush=True)
+  # pytest's live-logging handler owns the console while capture is active.
+  # Avoid sys.__stdout__ here: it may have an invalid handle on Windows.
+  line = f'[{datetime.now():%H:%M:%S}] {message}'
+  if 'PYTEST_CURRENT_TEST' in os.environ:
+    severity = logging.ERROR if '[ERROR]' in message else logging.WARNING if '[WARNING]' in message else logging.INFO
+    try:
+      _STEP_LOGGER.log(severity, line)
+    except Exception:
+      pass
+    return
+
+  # Outside pytest (flash, matrix runner), write directly to the console.
+  # A broken console must never interrupt a device/HIL operation.
+  for stream in (sys.__stdout__, sys.__stderr__, sys.stdout, sys.stderr):
+    if stream is None:
+      continue
+    try:
+      print(line, file=stream, flush=True)
+      return
+    except (OSError, ValueError):
+      continue
+
+
+def _layer(func: Callable) -> str:
+  module = func.__module__
+  if module in ('framework.device.device_driver', 'framework.hil.hil_driver'):
+    return 'driver'
+  if module.startswith('framework.hil.controllers.modules.'):
+    return 'module'
+  if module.startswith('framework.device.controllers.') or module.startswith('framework.hil.controllers.'):
+    return 'controller'
+  if module.startswith('lib.connectors.'):
+    return 'connector'
+  # Standalone/decorated test helpers keep their historical verbose behavior.
+  return 'controller'
 
 
 def log_step(func: Callable[P, R]) -> Callable[P, R]:
-  """Log arguments/results; STEP_LOG_LEVEL controls output globally via env."""
+  """Log public methods; debug includes all layers, verbose drivers/controllers."""
   signature = inspect.signature(func)
   method = func.__qualname__
+  layer = _layer(func)
 
   @wraps(func)
   def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -108,26 +149,44 @@ def log_step(func: Callable[P, R]) -> Callable[P, R]:
     if level == 'silent':
       return func(*args, **kwargs)
 
-    number = next(_STEP_NUMBERS)
-    arguments, secrets = _arguments(signature, args, kwargs)
-    call = f'#{number} {method}({arguments})'
-    if level == 'verbose':
-      _emit(f'[STEP] {call}')
-
-    started = time.monotonic()
+    layers = _STEP_LAYERS.get()
+    token = _STEP_LAYERS.set((*layers, layer))
+    secret_token = None
     try:
-      result = func(*args, **kwargs)
-    except Exception as exc:
-      elapsed = time.monotonic() - started
-      detail = _display(exc, secrets)[:_max_length()]
-      _emit(f'[ERROR] {call} -> {type(exc).__name__}: {detail} ({elapsed:.2f}s)')
-      raise
+      visible = level == 'debug' or (level == 'verbose' and layer in ('driver', 'controller'))
+      # Only decorated driver/controller calls affect verbose indentation.
+      depth = len(layers) if level == 'debug' else sum(
+        item in ('driver', 'controller') for item in layers
+      )
+      indent = '  ' * depth if visible else ''
+      number = next(_STEP_NUMBERS) if visible or level in ('warning', 'error') else None
+      arguments, secrets = _arguments(signature, args, kwargs, _STEP_SECRETS.get())
+      secret_token = _STEP_SECRETS.set(tuple(secrets))
+      call = f'#{number} {method}({arguments})'
+      prefix = f'{indent}' if visible else ''
+      if visible:
+        _emit(f'{prefix}[STEP] [{layer.upper()}] {call}')
 
-    detail = _display(result, secrets)
-    severity = 'ERROR' if result is False or _ERROR_CODE.search(detail) else 'WARNING' if _WARNING_CODE.search(detail) else 'OK'
-    if level == 'verbose' or severity == 'ERROR' or (level == 'warning' and severity == 'WARNING'):
-      elapsed = time.monotonic() - started
-      _emit(f'[{severity}] {call} -> {detail[:_max_length()]} ({elapsed:.2f}s)')
-    return result
+      started = time.monotonic()
+      try:
+        result = func(*args, **kwargs)
+      except Exception as exc:
+        if visible or level in ('warning', 'error'):
+          elapsed = time.monotonic() - started
+          detail = _display(exc, secrets)[:_max_length()]
+          _emit(f'{prefix}[ERROR] [{layer.upper()}] {call} -> {type(exc).__name__}: {detail} ({elapsed:.2f}s)')
+        raise
+
+      if visible or level in ('warning', 'error'):
+        detail = _display(result, secrets)
+        severity = 'ERROR' if result is False or _ERROR_CODE.search(detail) else 'WARNING' if _WARNING_CODE.search(detail) else 'OK'
+        if visible or severity == 'ERROR' or (level == 'warning' and severity == 'WARNING'):
+          elapsed = time.monotonic() - started
+          _emit(f'{prefix}[{severity}] [{layer.upper()}] {call} -> {detail[:_max_length()]} ({elapsed:.2f}s)')
+      return result
+    finally:
+      if secret_token is not None:
+        _STEP_SECRETS.reset(secret_token)
+      _STEP_LAYERS.reset(token)
 
   return wrapper

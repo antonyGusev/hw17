@@ -1,3 +1,4 @@
+from lib.utilities.step_logger import log_step
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -72,6 +73,7 @@ VERIFICATION_CONFIGS: dict[VideoCheck, VerificationConfig] = {
 class VideoModule(BaseCameraModule):
   """Camera controller for temporal lamp validation."""
 
+  @log_step
   def open_stream(self) -> cv2.VideoCapture:
     """Open the current MJPEG camera stream."""
     stream = cv2.VideoCapture(self._endpoints.stream_url)
@@ -82,6 +84,7 @@ class VideoModule(BaseCameraModule):
 
     return stream
 
+  @log_step
   def verify(self, check: VideoCheck, name: str | None = None) -> None:
     """Run the requested temporal camera verification."""
     config = VERIFICATION_CONFIGS[check]
@@ -108,6 +111,7 @@ class VideoModule(BaseCameraModule):
 
     self._save_video(observation.frames, f'artifacts/camera/passed/{artifact_name}.mp4')
     
+  @log_step
   def measure(self, measurement: VideoMeasurement, duration: float) -> float:
     """Measure the requested temporal lamp property."""
     if measurement == 'max_brightness':

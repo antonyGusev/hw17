@@ -294,55 +294,41 @@ Do not configure a static `OTA_TEST_SERVER` in `.env`. The ESP32 must be able
 to reach the detected LAN IP. Starting the server does **not** implicitly
 change the DUT's configured OTA source; the relevant tests configure it themselves.
 
-### Console step logging (opt-in)
+### Console step logging
 
-Use `@log_step` on the methods you want to trace. The decorator prints the
-class/method name, **passed arguments**, the returned value or exception, and
-execution time. It does not alter the method's return value or error handling.
+Every **public method** in the DUT/HIL drivers, feature controllers, camera modules,
+and UART connector is annotated with `@log_step`. Constructors, private methods,
+and property getters are excluded. Method signatures, return values and exception
+behavior are unchanged.
 
-```python
-from lib import log_step
+Step logging is **off by default** (`silent`). Plain `poe full_cycle`, `poe wifi`,
+and `poe lamp` do not emit step messages. Enable it explicitly with Poe or
+`STEP_LOG_LEVEL` in the environment / `.env` (for example `STEP_LOG_LEVEL=verbose`):
 
-class DeviceDriver:
-  @log_step
-  def reboot(self) -> list[str]:
-    # Keep the existing implementation unchanged.
-    ...
-
-class HILDriver:
-  @log_step
-  def power_cycle(self) -> list[str]:
-    ...
+```powershell
+poe logged lamp --log-level debug
+poe logged wifi --log-level verbose
+poe logged ota --log-level warning
+poe logged full_cycle --log-level error
+poe logged full_cycle_no_flash --log-level silent
 ```
 
-Set `STEP_LOG_LEVEL` in `.env` (or in the process environment):
-
-| Value | Console output |
+| Level | Output |
 | --- | --- |
-| `verbose` (default) | Every decorated call, arguments, result, duration |
-| `warning` | Only firmware `W###`/`E###`, failed boolean results, and exceptions |
-| `error` | Only firmware `E###`, failed boolean results, and exceptions |
-| `silent` | Nothing |
+| `debug` | Full nested call chain: drivers, controllers, camera modules, UART connector |
+| `verbose` | Calls, arguments and results from drivers and controllers only |
+| `warning` | Firmware `W###`/`E###` results and Python exceptions from any layer |
+| `error` | Firmware `E###` results and Python exceptions from any layer |
+| `silent` | No step-logger messages |
 
-Optional `STEP_LOG_MAX_LENGTH=1200` limits each result to 1200 characters. The
-logger masks known sensitive argument names (`password`, `pin`, `token`, etc.),
-corresponding values in results, and common CLI login/registration commands.
-Avoid decorating methods returning arbitrary unstructured secrets: automatic
-masking is best-effort.
+Debug lines are indented according to call depth. The logger redacts common
+password, PIN, token and authentication-command values; NumPy frames are
+summarized by shape/dtype. `STEP_LOG_MAX_LENGTH` (default 1200) limits the
+length of each logged result. Camera image/video **analysis logic is unchanged**;
+only its public-method calls can now be traced in debug mode.
 
-Example output:
-
-```text
-[17:32:01] [STEP] #1 DeviceDriver.version(wait=True)
-[17:32:01] [OK] #1 DeviceDriver.version(wait=True) -> ['version', '...'] (0.10s)
-[17:32:02] [WARNING] #2 LampController.on() -> ['W510 lamp already on'] (0.03s)
-[17:32:03] [ERROR] #3 HILDriver.power_on() -> DeviceTimeoutError: ... (2.00s)
-```
-
-The output goes to the real console even when pytest captures `stdout`, so
-`poe lamp` and `poe full_cycle` show steps without `-s`. **Only decorated
-methods are traced.** Most commands, such as `device.lamp.on()` and
-`hil.buttons.hold()`, are methods of controller objects, **not** methods of
-`DeviceDriver` or `HILDriver`; decorate `LampController.on`,
-`ButtonsController.hold`, etc. if you want those operations logged. The
-camera photo/video analysis code is unchanged.
+During pytest, step messages use pytest's live-logging handler (`log_cli` in
+`pyproject.toml`), so they remain visible without `-s` even on Windows.
+Outside pytest, the logger writes directly to the console. Masking is best-effort: do not return arbitrary plaintext secrets
+from custom methods. Warnings and errors originating from nested calls may be
+shown at more than one layer. Unhandled exceptions are re-raised unchanged.

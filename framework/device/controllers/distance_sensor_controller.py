@@ -1,6 +1,6 @@
 from typing import ClassVar, Literal, TypeAlias
 
-from lib import UARTConnector
+from lib import UARTConnector, log_step
 
 # Restrict supported distance modes at type-checking level.
 DistanceMode: TypeAlias = Literal['single', '10s', '1m']
@@ -16,6 +16,7 @@ class DistanceSensorController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def get(self, mode: DistanceMode = 'single') -> list[float]:
     command, pattern, timeout = self._COMMANDS[mode]
 

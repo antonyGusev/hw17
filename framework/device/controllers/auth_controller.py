@@ -1,12 +1,13 @@
 import re
 
-from lib import UARTConnector
+from lib import UARTConnector, log_step
 
 
 class AuthController:
   def __init__(self, connector: UARTConnector):
     self._connector = connector
 
+  @log_step
   def register(self, login: str, password: str) -> bool:
     response = self._connector.execute_command(f'register {login} {password}')
 
@@ -14,6 +15,7 @@ class AuthController:
     # confirms success by logging in and checking the documented whoami output.
     return bool(response) and not any(re.search(r'\bE\d{3}\b', line) for line in response)
 
+  @log_step
   def login(self, login: str, password: str) -> bool:
     response = self._connector.execute_command(f'login {login} {password}')
 
@@ -24,6 +26,7 @@ class AuthController:
     whoami = '\n'.join(self.whoami())
     return bool(re.search(rf'user:\s*{re.escape(login)}(?:,|\s)', whoami))
 
+  @log_step
   def whoami(self) -> list[str]:
     return self._connector.execute_command(
       'whoami', until=('user:', 'not logged in', 'E003'), timeout=5,
